@@ -188,9 +188,13 @@
     @media (max-width: 600px) {
       .nav-links-desktop { display: none !important; }
       .loc-grid { flex-direction: column !important; }
+      .loc-grid > div[style*="flex: 0 0 260px"] { flex: 1 1 auto !important; width: 100% !important; }
       .price-grid { flex-direction: column !important; }
       .photo-stagger-top  { margin-top: 0 !important; }
       .photo-stagger-neg  { margin-top: 0 !important; }
+    }
+    @media (max-width: 860px) and (min-width: 601px) {
+      .loc-grid > div[style*="flex: 0 0 260px"] { flex: 0 0 180px !important; }
     }
     @media (min-width: 601px) {
       .nav-btn-mobile { display: none !important; }
@@ -311,7 +315,24 @@
         <div class="hr-line" style="margin: 16px auto 0;"></div>
       </div>
 
-      <div class="loc-grid" style="display: flex; gap: 52px; align-items: flex-start;">
+      <div class="loc-grid" style="display: flex; gap: 32px; align-items: flex-start;">
+
+        <!-- Storefront photo -->
+        <div style="flex: 0 0 260px; min-width: 0;">
+          <div style="
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(44,28,28,0.12), 0 12px 48px rgba(44,28,28,0.08);
+          ">
+            <img
+              src="./Reference pictures/beautiful_nails_enhanced.jpg"
+              alt="Beautiful Nails - Emmasingel 41 Eindhoven"
+              style="width:100%; height:100%; object-fit:cover; object-position: center 30%; display:block;"
+            >
+          </div>
+        </div>
 
         <!-- Map -->
         <div style="flex: 1; min-width: 0;">
