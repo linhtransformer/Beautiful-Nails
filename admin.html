@@ -336,6 +336,7 @@
       document.getElementById('app').classList.add('show');
       await loadAppointments();
       renderView();
+      subscribeRealtime();
     }
 
     // Check if already logged in
@@ -678,9 +679,19 @@
       }
     }
 
+    // ── Real-time subscription ────────────────────────────────
+    function subscribeRealtime() {
+      sb.channel('appointments-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, async () => {
+          await loadAppointments();
+          renderView();
+        })
+        .subscribe();
+    }
+
     // ── Boot ──────────────────────────────────────────────────
     if (sessionStorage.getItem('bn_auth') === '1') {
-      loadAppointments().then(renderView);
+      loadAppointments().then(() => { renderView(); subscribeRealtime(); });
     }
   </script>
 </body>
