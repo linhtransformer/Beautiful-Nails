@@ -429,11 +429,6 @@
           <span class="field-err" id="errEmail">Vul een geldig e-mailadres in</span>
         </div>
         <div class="field full">
-          <label>Geboortedatum</label>
-          <input type="date" id="fDob" autocomplete="bday">
-          <span class="field-err" id="errDob">Vul je geboortedatum in</span>
-        </div>
-        <div class="field full">
           <label>Notities (optioneel)</label>
           <textarea id="fNotes" class="notes-input" placeholder="Bijzondere wensen, allergieën of overige opmerkingen…"></textarea>
         </div>
@@ -740,7 +735,6 @@
         { id: 'fAchternaam',errId: 'errAchternaam', check: v => v.trim().length > 0 },
         { id: 'fPhone',     errId: 'errPhone',      check: v => /^[\d\s\-+()]{6,}$/.test(v.trim()) },
         { id: 'fEmail',     errId: 'errEmail',      check: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) },
-        { id: 'fDob',       errId: 'errDob',        check: v => !!v },
       ];
       let ok = true;
       fields.forEach(f => {
@@ -768,7 +762,6 @@
         ['Naam',        `${document.getElementById('fVoornaam').value} ${document.getElementById('fAchternaam').value}`],
         ['Telefoon',    document.getElementById('fPhone').value],
         ['E-mail',      document.getElementById('fEmail').value],
-        ['Geboortedatum', document.getElementById('fDob').value],
         ...(notes ? [['Notities', notes]] : []),
       ];
       document.getElementById('confirmCard').innerHTML = `
@@ -789,7 +782,6 @@
         name:             fullName,
         phone:            document.getElementById('fPhone').value.trim(),
         email:            document.getElementById('fEmail').value.trim(),
-        date_of_birth:    document.getElementById('fDob').value,
         service_name:     state.service.name,
         service_duration: state.service.dur,
         service_price:    state.service.price,

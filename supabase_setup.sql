@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   name             TEXT        NOT NULL,
   phone            TEXT        NOT NULL,
   email            TEXT        NOT NULL,
-  date_of_birth    DATE        NOT NULL,
+  date_of_birth    DATE,
   service_name     TEXT        NOT NULL,
   service_duration INTEGER     NOT NULL,  -- in minutes
   service_price    TEXT        NOT NULL,
