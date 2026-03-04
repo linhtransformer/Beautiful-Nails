@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard – Beautiful Nails</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Tenor+Sans&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg:      #141414;
+      --surface: #1e1e1e;
+      --raised:  #272727;
+      --border:  rgba(255,255,255,0.07);
+      --wine:    #7c3a3a;
+      --wine-lt: #a05050;
+      --cream:   #f7f2ec;
+      --text:    rgba(247,242,236,0.85);
+      --muted:   rgba(247,242,236,0.38);
+      --hour-h:  64px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Tenor Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-display { font-family: 'Playfair Display', serif; }
+
+    /* ── Login overlay ── */
+    #loginOverlay {
+      position: fixed; inset: 0; z-index: 999;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-box {
+      width: 100%; max-width: 360px; padding: 0 20px;
+      text-align: center;
+    }
+    .login-box img { height: 40px; margin-bottom: 32px; filter: brightness(0) invert(1); opacity: 0.7; }
+    .login-box h2 {
+      font-family: 'Playfair Display', serif; font-style: italic;
+      font-size: 1.5rem; color: #fff; margin-bottom: 8px;
+    }
+    .login-box p { font-size: 0.8rem; color: var(--muted); margin-bottom: 28px; }
+    .login-field {
+      position: relative; margin-bottom: 12px;
+    }
+    .login-field input {
+      width: 100%; padding: 13px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text);
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .login-field input:focus { border-color: var(--wine-lt); }
+    .login-err { font-size: 0.78rem; color: #e07070; margin-bottom: 12px; display: none; }
+    .login-err.show { display: block; }
+    .login-btn {
+      width: 100%; padding: 13px;
+      background: var(--wine); color: var(--cream);
+      border: none; border-radius: 4px; cursor: pointer;
+      font-family: 'Tenor Sans', sans-serif;
+      font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: var(--wine-lt); }
+
+    /* ── App shell ── */
+    #app { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+    #app.show { display: flex; }
+
+    /* ── Top bar ── */
+    .topbar {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 56px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .topbar img { height: 28px; filter: brightness(0) invert(1); opacity: 0.65; flex-shrink: 0; }
+    .tb-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    .tb-nav { display: flex; align-items: center; gap: 8px; }
+    .tb-btn {
+      background: none; border: 1px solid var(--border);
+      color: var(--text); width: 30px; height: 30px;
+      border-radius: 4px; cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .tb-btn:hover { border-color: var(--wine-lt); color: #fff; }
+    .tb-today {
+      background: none; border: 1px solid var(--border);
+      color: var(--text); padding: 0 14px; height: 30px;
+      border-radius: 4px; cursor: pointer;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.72rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      transition: border-color 0.15s;
+    }
+    .tb-today:hover { border-color: var(--wine-lt); }
+    .tb-range {
+      font-family: 'Playfair Display', serif; font-style: italic;
+      font-size: 0.95rem; color: rgba(247,242,236,0.75);
+    }
+    .tb-spacer { flex: 1; }
+    .tb-count {
+      font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .tb-count span { color: var(--wine-lt); font-size: 1rem; font-style: italic; font-family: 'Playfair Display', serif; }
+    .view-toggle { display: flex; gap: 2px; background: var(--bg); border-radius: 4px; padding: 3px; }
+    .view-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 4px 12px;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.72rem;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      border-radius: 3px; transition: background 0.15s, color 0.15s;
+    }
+    .view-btn.active { background: var(--surface); color: var(--text); }
+
+    /* ── Calendar area ── */
+    .cal-area {
+      flex: 1; overflow: hidden; display: flex; flex-direction: column;
+    }
+
+    /* ── Week view ── */
+    .week-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .week-header {
+      display: grid; border-bottom: 1px solid var(--border); flex-shrink: 0;
+      background: var(--surface);
+    }
+    .week-header .time-gutter { width: 64px; border-right: 1px solid var(--border); }
+    .week-day-hdr {
+      text-align: center; padding: 10px 4px;
+      font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); border-right: 1px solid var(--border);
+    }
+    .week-day-hdr .day-num {
+      display: block; font-size: 1.3rem; font-family: 'Playfair Display', serif;
+      font-style: italic; color: var(--text); margin-top: 2px; line-height: 1;
+    }
+    .week-day-hdr.today .day-num {
+      color: var(--cream); background: var(--wine);
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 4px auto 0;
+    }
+    .week-body { flex: 1; overflow-y: auto; display: flex; }
+    .time-col {
+      width: 64px; flex-shrink: 0; border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .time-label {
+      position: absolute; left: 0; right: 0;
+      text-align: right; padding-right: 10px;
+      font-size: 0.65rem; color: var(--muted);
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .week-days { flex: 1; display: grid; position: relative; }
+    .week-day-col {
+      border-right: 1px solid var(--border); position: relative;
+    }
+    .hour-line {
+      position: absolute; left: 0; right: 0;
+      border-top: 1px solid var(--border);
+    }
+    .appt-block {
+      position: absolute; left: 3px; right: 3px;
+      background: var(--wine); border-radius: 3px; overflow: hidden;
+      padding: 4px 6px; cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+      border-left: 3px solid var(--wine-lt);
+      z-index: 2;
+    }
+    .appt-block:hover { opacity: 0.88; transform: scaleX(0.98); }
+    .appt-block .ab-name { font-size: 0.72rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cream); }
+    .appt-block .ab-svc  { font-size: 0.65rem; color: rgba(247,242,236,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Month view ── */
+    .month-view { padding: 16px; }
+    .month-grid-hdr { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; }
+    .month-dow { text-align: center; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 8px 0; }
+    .month-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+    .month-cell {
+      background: var(--surface); border-radius: 4px; min-height: 88px;
+      padding: 8px; border: 1px solid var(--border);
+      transition: border-color 0.15s;
+    }
+    .month-cell:hover { border-color: rgba(255,255,255,0.15); }
+    .month-cell.other-month { opacity: 0.35; }
+    .month-cell.today { border-color: var(--wine); }
+    .month-cell.closed { background: rgba(255,255,255,0.02); }
+    .mc-num { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+    .mc-num.today-num { color: var(--wine-lt); font-weight: 700; }
+    .mc-appt {
+      font-size: 0.65rem; background: var(--wine);
+      color: var(--cream); border-radius: 3px;
+      padding: 2px 5px; margin-bottom: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+    }
+    .mc-more { font-size: 0.62rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Day view ── */
+    .day-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .day-header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+    }
+    .day-title { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.2rem; color: var(--text); }
+    .day-body { flex: 1; overflow-y: auto; display: flex; }
+
+    /* ── Popover ── */
+    .popover {
+      position: fixed; z-index: 200;
+      background: var(--raised); border: 1px solid var(--border);
+      border-radius: 6px; padding: 16px; width: 240px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      display: none;
+    }
+    .popover.show { display: block; }
+    .popover-close {
+      position: absolute; top: 8px; right: 10px;
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1rem; line-height: 1;
+    }
+    .popover-name { font-size: 0.9rem; color: #fff; margin-bottom: 10px; font-weight: 600; }
+    .popover-row { font-size: 0.78rem; color: var(--muted); margin-bottom: 5px; }
+    .popover-row span { color: var(--text); }
+    .popover-status {
+      display: inline-block; margin-top: 8px; padding: 3px 10px;
+      border-radius: 10px; font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.1em; background: rgba(124,58,58,0.3); color: var(--wine-lt);
+    }
+    .popover-status.confirmed { background: rgba(80,140,80,0.25); color: #8bc88b; }
+    .popover-status.cancelled { background: rgba(180,60,60,0.2); color: #e08080; }
+    .popover-actions { display: flex; gap: 6px; margin-top: 12px; }
+    .pact-btn {
+      flex: 1; padding: 6px; border-radius: 3px; font-size: 0.68rem;
+      letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+      border: 1px solid var(--border); background: none; color: var(--muted);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .pact-btn:hover { border-color: var(--wine-lt); color: var(--text); }
+    .pact-btn.confirm { border-color: rgba(80,140,80,0.4); color: #8bc88b; }
+    .pact-btn.cancel  { border-color: rgba(180,60,60,0.3); color: #e08080; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Login ── -->
+  <div id="loginOverlay">
+    <div class="login-box">
+      <img src="./Brand asset/Brand logo.png" alt="Beautiful Nails">
+      <h2>Dashboard</h2>
+      <p>Alleen voor medewerkers</p>
+      <div class="login-field">
+        <input type="password" id="pwInput" placeholder="Wachtwoord" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="login-err" id="loginErr">Onjuist wachtwoord</div>
+      <button class="login-btn" onclick="doLogin()">Inloggen</button>
+    </div>
+  </div>
+
+  <!-- ── App ── -->
+  <div id="app">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <img src="./Brand asset/Brand logo.png" alt="Beautiful Nails">
+      <div class="tb-sep"></div>
+      <div class="tb-nav">
+        <button class="tb-today" onclick="goToday()">Vandaag</button>
+        <button class="tb-btn" onclick="navigate(-1)">‹</button>
+        <button class="tb-btn" onclick="navigate(1)">›</button>
+      </div>
+      <div class="tb-range" id="tbRange"></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-count" id="tbCount"></div>
+      <div class="tb-sep"></div>
+      <div class="view-toggle">
+        <button class="view-btn" onclick="setView('day')"   id="vDay">Dag</button>
+        <button class="view-btn active" onclick="setView('week')" id="vWeek">Week</button>
+        <button class="view-btn" onclick="setView('month')" id="vMonth">Maand</button>
+      </div>
+    </div>
+
+    <!-- Calendar area -->
+    <div class="cal-area" id="calArea"></div>
+
+  </div>
+
+  <!-- Popover -->
+  <div class="popover" id="popover">
+    <button class="popover-close" onclick="closePopover()">×</button>
+    <div class="popover-name" id="popName"></div>
+    <div class="popover-row">Dienst: <span id="popSvc"></span></div>
+    <div class="popover-row">Tijd: <span id="popTime"></span></div>
+    <div class="popover-row">Duur: <span id="popDur"></span></div>
+    <div class="popover-row">Tel: <span id="popPhone"></span></div>
+    <div class="popover-row">Email: <span id="popEmail"></span></div>
+    <div><span class="popover-status" id="popStatus"></span></div>
+    <div class="popover-actions">
+      <button class="pact-btn confirm" id="pActConfirm" onclick="updateStatus('confirmed')">Bevestigen</button>
+      <button class="pact-btn cancel"  id="pActCancel"  onclick="updateStatus('cancelled')">Annuleren</button>
+    </div>
+  </div>
+
+  <script>
+    // ── Supabase ──────────────────────────────────────────────
+    const { createClient } = supabase;
+    const sb = createClient(
+      'https://cgnkwhcsyzhrymfrensd.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnbmt3aGNzeXpocnltZnJlbnNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTEzNDAsImV4cCI6MjA4ODE4NzM0MH0.ZPyQjFvLfaFpWs4b0il61dxyfnwT3cBlVHrAXqR3-Ak'
+    );
+
+    // ── Auth ──────────────────────────────────────────────────
+    const HASH = '410b528299140a7c7d025a6ea3fd14535fa3e1deca167908d4fff7a3dcca1c1a'; // sha256(Zang1909)
+
+    async function doLogin() {
+      const pw = document.getElementById('pwInput').value;
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+      const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+      if (hash !== HASH) {
+        document.getElementById('loginErr').classList.add('show');
+        return;
+      }
+      sessionStorage.setItem('bn_auth', '1');
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('app').classList.add('show');
+      await loadAppointments();
+      renderView();
+    }
+
+    // Check if already logged in
+    if (sessionStorage.getItem('bn_auth') === '1') {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('app').classList.add('show');
+    }
+
+    // ── State ─────────────────────────────────────────────────
+    let view = 'week';
+    let cursor = new Date();
+    cursor.setHours(0,0,0,0);
+    let appointments = [];
+    let popAppt = null;
+
+    // Dutch helpers
+    const MONTHS = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+    const DAYS   = ['zo','ma','di','wo','do','vr','za'];
+    const DAYS_FULL = ['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'];
+
+    // ── Data ──────────────────────────────────────────────────
+    async function loadAppointments() {
+      const { data, error } = await sb.from('appointments')
+        .select('*')
+        .order('appointment_date').order('appointment_time');
+      if (!error) appointments = data || [];
+    }
+
+    function apptsOnDate(dateStr) {
+      return appointments.filter(a => a.appointment_date === dateStr && a.status !== 'cancelled');
+    }
+
+    function dateStr(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function timeToMin(t) { // "HH:MM:SS" or "HH:MM"
+      const [h,m] = t.split(':').map(Number); return h*60+m;
+    }
+
+    // ── Navigation ────────────────────────────────────────────
+    function goToday() { cursor = new Date(); cursor.setHours(0,0,0,0); renderView(); }
+
+    function navigate(dir) {
+      if (view === 'day')   cursor.setDate(cursor.getDate() + dir);
+      if (view === 'week')  cursor.setDate(cursor.getDate() + dir*7);
+      if (view === 'month') cursor.setMonth(cursor.getMonth() + dir);
+      renderView();
+    }
+
+    function setView(v) {
+      view = v;
+      ['day','week','month'].forEach(x => document.getElementById('v'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('active', x===v));
+      renderView();
+    }
+
+    // ── Render ────────────────────────────────────────────────
+    function renderView() {
+      if (view === 'week')  renderWeek();
+      if (view === 'month') renderMonth();
+      if (view === 'day')   renderDay();
+    }
+
+    // Calendar constants
+    const FIRST_HOUR = 9;
+    const LAST_HOUR  = 22;
+    const HOUR_H     = 64; // px per hour
+
+    function buildTimeGrid(container, totalHours) {
+      const tc = document.createElement('div');
+      tc.className = 'time-col';
+      tc.style.height = (totalHours * HOUR_H) + 'px';
+      for (let h = FIRST_HOUR; h <= LAST_HOUR; h++) {
+        const lbl = document.createElement('div');
+        lbl.className = 'time-label';
+        lbl.style.top = ((h - FIRST_HOUR) * HOUR_H) + 'px';
+        lbl.textContent = String(h).padStart(2,'0') + ':00';
+        tc.appendChild(lbl);
+      }
+      container.appendChild(tc);
+    }
+
+    function buildHourLines(col, totalHours) {
+      for (let h = 0; h <= totalHours; h++) {
+        const line = document.createElement('div');
+        line.className = 'hour-line';
+        line.style.top = (h * HOUR_H) + 'px';
+        col.appendChild(line);
+      }
+    }
+
+    function makeApptBlock(appt, totalHours) {
+      const startMin = timeToMin(appt.appointment_time);
+      const top  = ((startMin / 60) - FIRST_HOUR) * HOUR_H;
+      const h    = (appt.service_duration / 60) * HOUR_H;
+      if (top < 0 || top > totalHours * HOUR_H) return null;
+      const block = document.createElement('div');
+      block.className = 'appt-block';
+      block.style.top    = top + 'px';
+      block.style.height = Math.max(h - 2, 20) + 'px';
+      block.innerHTML = `<div class="ab-name">${appt.name}</div><div class="ab-svc">${appt.service_name}</div>`;
+      block.onclick = (e) => { e.stopPropagation(); openPopover(appt, e); };
+      return block;
+    }
+
+    // ── WEEK VIEW ─────────────────────────────────────────────
+    function renderWeek() {
+      const totalHours = LAST_HOUR - FIRST_HOUR;
+      // Week start = Monday of cursor's week
+      const day = cursor.getDay(); // 0=Sun
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const weekStart = new Date(cursor);
+      weekStart.setDate(cursor.getDate() + mondayOffset);
+
+      const days = Array.from({length:7}, (_,i) => {
+        const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d;
+      });
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const rangeLabel = `${days[0].getDate()} – ${days[6].getDate()} ${MONTHS[days[6].getMonth()]} ${days[6].getFullYear()}`;
+      document.getElementById('tbRange').textContent = rangeLabel;
+
+      // Count this week's appts
+      const weekAppts = days.flatMap(d => apptsOnDate(dateStr(d)));
+      document.getElementById('tbCount').innerHTML = `<span>${weekAppts.length}</span> afsprak${weekAppts.length===1?'':'en'} deze week`;
+
+      const area = document.getElementById('calArea');
+      area.innerHTML = '';
+      const wv = document.createElement('div');
+      wv.className = 'week-view';
+
+      // Header row
+      const hdr = document.createElement('div');
+      hdr.className = 'week-header';
+      hdr.style.display = 'grid';
+      hdr.style.gridTemplateColumns = `64px repeat(7,1fr)`;
+      const gutter = document.createElement('div');
+      gutter.className = 'time-gutter';
+      hdr.appendChild(gutter);
+      days.forEach(d => {
+        const isToday = d.getTime() === today.getTime();
+        const cel = document.createElement('div');
+        cel.className = 'week-day-hdr' + (isToday ? ' today' : '');
+        cel.innerHTML = `${DAYS[d.getDay()].toUpperCase()}<span class="day-num">${d.getDate()}</span>`;
+        hdr.appendChild(cel);
+      });
+      wv.appendChild(hdr);
+
+      // Body
+      const body = document.createElement('div');
+      body.className = 'week-body';
+      buildTimeGrid(body, totalHours);
+
+      const daysRow = document.createElement('div');
+      daysRow.className = 'week-days';
+      daysRow.style.gridTemplateColumns = `repeat(7,1fr)`;
+      daysRow.style.height = (totalHours * HOUR_H) + 'px';
+
+      days.forEach(d => {
+        const col = document.createElement('div');
+        col.className = 'week-day-col';
+        col.style.height = (totalHours * HOUR_H) + 'px';
+        buildHourLines(col, totalHours);
+        apptsOnDate(dateStr(d)).forEach(a => {
+          const block = makeApptBlock(a, totalHours);
+          if (block) col.appendChild(block);
+        });
+        daysRow.appendChild(col);
+      });
+      body.appendChild(daysRow);
+      wv.appendChild(body);
+      area.appendChild(wv);
+
+      // Scroll to 10:00
+      setTimeout(() => { body.scrollTop = (10 - FIRST_HOUR) * HOUR_H - 16; }, 0);
+    }
+
+    // ── MONTH VIEW ────────────────────────────────────────────
+    function renderMonth() {
+      const y = cursor.getFullYear(), m = cursor.getMonth();
+      document.getElementById('tbRange').textContent = `${MONTHS[m]} ${y}`;
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const monthAppts = appointments.filter(a => {
+        const [ay, am] = a.appointment_date.split('-').map(Number);
+        return ay === y && am === m+1 && a.status !== 'cancelled';
+      });
+      document.getElementById('tbCount').innerHTML = `<span>${monthAppts.length}</span> afsprak${monthAppts.length===1?'':'en'} deze maand`;
+
+      const area = document.getElementById('calArea');
+      area.innerHTML = '';
+      const mv = document.createElement('div');
+      mv.className = 'month-view'; mv.style.overflowY = 'auto'; mv.style.height = '100%';
+
+      // Day headers (Mon–Sun)
+      const hdrRow = document.createElement('div');
+      hdrRow.className = 'month-grid-hdr';
+      ['Ma','Di','Wo','Do','Vr','Za','Zo'].forEach(d => {
+        const el = document.createElement('div'); el.className = 'month-dow'; el.textContent = d;
+        hdrRow.appendChild(el);
+      });
+      mv.appendChild(hdrRow);
+
+      const grid = document.createElement('div');
+      grid.className = 'month-grid';
+
+      const firstDay = new Date(y, m, 1).getDay(); // 0=Sun
+      const daysInMonth = new Date(y, m+1, 0).getDate();
+      // Offset for Mon-first grid (Mon=0, Sun=6)
+      const offset = firstDay === 0 ? 6 : firstDay - 1;
+
+      // Prev month fill
+      const prevDays = new Date(y, m, 0).getDate();
+      for (let i = 0; i < offset; i++) {
+        const cel = document.createElement('div');
+        cel.className = 'month-cell other-month';
+        cel.innerHTML = `<div class="mc-num">${prevDays - offset + i + 1}</div>`;
+        grid.appendChild(cel);
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(y, m, d);
+        const ds = dateStr(date);
+        const isToday = date.getTime() === today.getTime();
+        const isSun = date.getDay() === 0;
+        const dayAppts = apptsOnDate(ds);
+        const cel = document.createElement('div');
+        cel.className = 'month-cell' + (isToday ? ' today' : '') + (isSun ? ' closed' : '');
+        const numCls = isToday ? 'mc-num today-num' : 'mc-num';
+        let html = `<div class="${numCls}">${d}</div>`;
+        const show = dayAppts.slice(0, 3);
+        show.forEach(a => {
+          html += `<div class="mc-appt" title="${a.name}">${a.appointment_time.slice(0,5)} ${a.name.split(' ')[0]}</div>`;
+        });
+        if (dayAppts.length > 3) html += `<div class="mc-more">+${dayAppts.length-3} meer</div>`;
+        cel.innerHTML = html;
+        cel.querySelectorAll('.mc-appt').forEach((el, i) => {
+          el.onclick = (e) => { e.stopPropagation(); openPopover(dayAppts[i], e); };
+        });
+        grid.appendChild(cel);
+      }
+
+      // Next month fill
+      const total = offset + daysInMonth;
+      const remaining = total % 7 === 0 ? 0 : 7 - (total % 7);
+      for (let i = 1; i <= remaining; i++) {
+        const cel = document.createElement('div');
+        cel.className = 'month-cell other-month';
+        cel.innerHTML = `<div class="mc-num">${i}</div>`;
+        grid.appendChild(cel);
+      }
+
+      mv.appendChild(grid);
+      area.appendChild(mv);
+    }
+
+    // ── DAY VIEW ──────────────────────────────────────────────
+    function renderDay() {
+      const totalHours = LAST_HOUR - FIRST_HOUR;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const isToday = cursor.getTime() === today.getTime();
+      const ds = dateStr(cursor);
+      const dayAppts = apptsOnDate(ds);
+
+      document.getElementById('tbRange').textContent =
+        `${DAYS_FULL[cursor.getDay()]} ${cursor.getDate()} ${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`;
+      document.getElementById('tbCount').innerHTML =
+        `<span>${dayAppts.length}</span> afsprak${dayAppts.length===1?'':'en'} vandaag`;
+
+      const area = document.getElementById('calArea');
+      area.innerHTML = '';
+      const dv = document.createElement('div');
+      dv.className = 'day-view';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'day-header';
+      hdr.innerHTML = `<div class="day-title">${DAYS_FULL[cursor.getDay()]} ${cursor.getDate()} ${MONTHS[cursor.getMonth()]}</div>${isToday ? '<span style="font-size:0.7rem;color:var(--wine-lt);letter-spacing:0.1em;text-transform:uppercase;">Vandaag</span>' : ''}`;
+      dv.appendChild(hdr);
+
+      const body = document.createElement('div');
+      body.className = 'day-body';
+      buildTimeGrid(body, totalHours);
+
+      const col = document.createElement('div');
+      col.style.cssText = `flex:1; position:relative; height:${totalHours*HOUR_H}px;`;
+      buildHourLines(col, totalHours);
+      dayAppts.forEach(a => {
+        const block = makeApptBlock(a, totalHours);
+        if (block) col.appendChild(block);
+      });
+      body.appendChild(col);
+      dv.appendChild(body);
+      area.appendChild(dv);
+
+      setTimeout(() => { body.scrollTop = (10 - FIRST_HOUR) * HOUR_H - 16; }, 0);
+    }
+
+    // ── Popover ───────────────────────────────────────────────
+    function openPopover(appt, evt) {
+      popAppt = appt;
+      document.getElementById('popName').textContent  = appt.name;
+      document.getElementById('popSvc').textContent   = appt.service_name;
+      document.getElementById('popTime').textContent  = appt.appointment_time.slice(0,5) + ' · ' + appt.appointment_date;
+      document.getElementById('popDur').textContent   = appt.service_duration + ' min · ' + appt.service_price;
+      document.getElementById('popPhone').textContent = appt.phone;
+      document.getElementById('popEmail').textContent = appt.email;
+      const st = document.getElementById('popStatus');
+      st.textContent = appt.status;
+      st.className = 'popover-status ' + (appt.status === 'confirmed' ? 'confirmed' : appt.status === 'cancelled' ? 'cancelled' : '');
+      const pop = document.getElementById('popover');
+      pop.classList.add('show');
+      const rect = evt.target.getBoundingClientRect();
+      let left = rect.right + 8;
+      let top  = rect.top;
+      if (left + 250 > window.innerWidth) left = rect.left - 258;
+      if (top + 280 > window.innerHeight) top = window.innerHeight - 290;
+      pop.style.left = left + 'px';
+      pop.style.top  = Math.max(8, top) + 'px';
+    }
+
+    function closePopover() { document.getElementById('popover').classList.remove('show'); popAppt = null; }
+    document.addEventListener('click', e => { if (!document.getElementById('popover').contains(e.target)) closePopover(); });
+
+    async function updateStatus(status) {
+      if (!popAppt) return;
+      const { error } = await sb.from('appointments').update({ status }).eq('id', popAppt.id);
+      if (!error) {
+        popAppt.status = status;
+        const idx = appointments.findIndex(a => a.id === popAppt.id);
+        if (idx >= 0) appointments[idx].status = status;
+        closePopover();
+        renderView();
+      }
+    }
+
+    // ── Boot ──────────────────────────────────────────────────
+    if (sessionStorage.getItem('bn_auth') === '1') {
+      loadAppointments().then(renderView);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Afspraak maken – Beautiful Nails</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600;1,700&family=Tenor+Sans&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --cream: #f7f2ec;
+      --wine:  #7c3a3a;
+      --dark:  #2c2826;
+      --blush: #ede7e0;
+      --muted: #c4988c;
+      --wine-light: #f0e6e6;
+      --border: rgba(124,58,58,0.15);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--cream);
+      color: var(--dark);
+      font-family: 'Tenor Sans', sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    .font-display { font-family: 'Playfair Display', serif; }
+
+    /* Grain */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 999;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      background: rgba(247,242,236,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hdr a { text-decoration: none; display: flex; align-items: center; gap: 10px; }
+    .hdr img { height: 32px; }
+    .hdr-sep { width: 1px; height: 20px; background: var(--border); }
+    .hdr-title { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+    /* ── Progress steps ── */
+    .steps {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; padding: 28px 24px 0;
+      max-width: 600px; margin: 0 auto;
+    }
+    .step-item { display: flex; align-items: center; gap: 0; flex: 1; }
+    .step-circle {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 600; flex-shrink: 0;
+      border: 1.5px solid var(--border);
+      background: var(--cream); color: rgba(44,40,38,0.4);
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+    .step-circle.active { background: var(--wine); color: var(--cream); border-color: var(--wine); }
+    .step-circle.done { background: var(--blush); color: var(--wine); border-color: var(--muted); }
+    .step-label { font-size: 0.67rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; color: rgba(44,40,38,0.4); }
+    .step-label.active { color: var(--wine); }
+    .step-connector { flex: 1; height: 1px; background: var(--border); }
+    .step-wrap { display: flex; flex-direction: column; align-items: center; }
+
+    /* ── Main content ── */
+    .main { max-width: 780px; margin: 0 auto; padding: 32px 20px 80px; }
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    /* ── Section heading ── */
+    .panel-title {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      color: var(--wine);
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .panel-sub {
+      font-size: 0.85rem;
+      color: rgba(44,40,38,0.5);
+      margin-bottom: 28px;
+    }
+
+    /* ── Category tabs ── */
+    .cat-tabs {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .cat-tab {
+      padding: 7px 16px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.75rem; letter-spacing: 0.08em;
+      cursor: pointer; background: transparent; color: var(--dark);
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    .cat-tab:hover { border-color: var(--wine); color: var(--wine); }
+    .cat-tab.active { background: var(--wine); color: var(--cream); border-color: var(--wine); }
+
+    /* ── Service cards ── */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .svc-card {
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      position: relative;
+    }
+    .svc-card:hover {
+      border-color: var(--muted);
+      box-shadow: 0 4px 16px rgba(124,58,58,0.08);
+      transform: translateY(-1px);
+    }
+    .svc-card.selected {
+      border-color: var(--wine);
+      background: var(--wine-light);
+      box-shadow: 0 4px 20px rgba(124,58,58,0.14);
+    }
+    .svc-card.selected::after {
+      content: '✓';
+      position: absolute; top: 10px; right: 12px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--wine); color: var(--cream);
+      font-size: 0.65rem; display: flex; align-items: center; justify-content: center;
+    }
+    .svc-name { font-size: 0.88rem; font-weight: 500; margin-bottom: 8px; line-height: 1.35; }
+    .svc-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .svc-price { font-size: 0.78rem; color: var(--wine); font-weight: 600; }
+    .svc-dur {
+      font-size: 0.7rem; color: rgba(44,40,38,0.5);
+      background: var(--blush); padding: 2px 8px; border-radius: 10px;
+    }
+
+    /* ── Calendar ── */
+    .cal-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 580px) { .cal-layout { grid-template-columns: 1fr; } }
+
+    .cal-wrap { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .cal-nav-btn {
+      background: none; border: 1px solid var(--border);
+      width: 32px; height: 32px; border-radius: 50%;
+      cursor: pointer; font-size: 0.9rem; color: var(--dark);
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .cal-nav-btn:hover { border-color: var(--wine); color: var(--wine); }
+    .cal-month { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1rem; color: var(--wine); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-dow {
+      text-align: center; font-size: 0.62rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(44,40,38,0.4); padding: 6px 0;
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; border-radius: 50%; cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+      border: none; background: none; color: var(--dark);
+    }
+    .cal-day:hover:not(.closed):not(.past) { background: var(--blush); }
+    .cal-day.today { font-weight: 700; color: var(--wine); }
+    .cal-day.selected { background: var(--wine) !important; color: var(--cream) !important; }
+    .cal-day.closed, .cal-day.past { color: rgba(44,40,38,0.22); cursor: default; }
+    .cal-day.empty { cursor: default; }
+
+    /* ── Time slots ── */
+    .slots-wrap { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+    .slots-date { font-family: 'Playfair Display', serif; font-style: italic; font-size: 0.95rem; color: var(--wine); margin-bottom: 14px; }
+    .slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .slot-btn {
+      padding: 8px 4px; border: 1px solid var(--border);
+      border-radius: 4px; background: none; cursor: pointer;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.8rem;
+      color: var(--dark); text-align: center;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .slot-btn:hover { border-color: var(--wine); color: var(--wine); }
+    .slot-btn.selected { background: var(--wine); color: var(--cream); border-color: var(--wine); }
+    .slots-empty { font-size: 0.82rem; color: rgba(44,40,38,0.45); text-align: center; padding: 24px 0; }
+    .slots-loading { font-size: 0.82rem; color: var(--muted); text-align: center; padding: 24px 0; }
+
+    /* ── Selected service recap ── */
+    .recap-bar {
+      background: var(--wine-light);
+      border: 1px solid rgba(124,58,58,0.2);
+      border-radius: 6px; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 8px;
+    }
+    .recap-bar .svc-name { font-size: 0.85rem; color: var(--wine); margin-bottom: 0; }
+    .recap-bar .svc-meta { margin-top: 2px; }
+
+    /* ── Form ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(44,40,38,0.55); }
+    .field input {
+      border: 1.5px solid var(--border);
+      border-radius: 4px; padding: 11px 14px;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.9rem;
+      background: #fff; color: var(--dark);
+      transition: border-color 0.2s ease;
+      outline: none;
+    }
+    .field input:focus { border-color: var(--wine); }
+    .field input.error { border-color: #c0392b; }
+    .field-err { font-size: 0.72rem; color: #c0392b; display: none; }
+    .field-err.show { display: block; }
+
+    /* ── Confirmation summary ── */
+    .confirm-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 28px;
+      margin-bottom: 24px;
+    }
+    .confirm-card h3 {
+      font-family: 'Playfair Display', serif; font-style: italic;
+      font-size: 1.1rem; color: var(--wine); margin-bottom: 18px;
+    }
+    .confirm-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 9px 0; border-bottom: 1px solid rgba(124,58,58,0.08);
+      font-size: 0.875rem; gap: 12px;
+    }
+    .confirm-row:last-child { border-bottom: none; }
+    .confirm-row .lbl { color: rgba(44,40,38,0.5); flex-shrink: 0; }
+    .confirm-row .val { color: var(--dark); font-weight: 500; text-align: right; }
+
+    /* ── Success screen ── */
+    .success-screen {
+      display: none; text-align: center; padding: 48px 24px;
+    }
+    .success-screen.show { display: block; }
+    .success-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--wine); color: var(--cream);
+      font-size: 1.6rem; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-block;
+      background: var(--wine); color: var(--cream);
+      font-family: 'Tenor Sans', sans-serif;
+      font-size: 0.75rem; letter-spacing: 0.16em;
+      text-transform: uppercase; padding: 14px 40px;
+      border: none; cursor: pointer; text-decoration: none;
+      box-shadow: 0 2px 8px rgba(124,58,58,0.2), 0 6px 24px rgba(124,58,58,0.12);
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(124,58,58,0.28), 0 10px 36px rgba(124,58,58,0.16); }
+    .btn:active { transform: translateY(0); }
+    .btn:focus-visible { outline: 2px solid var(--wine); outline-offset: 4px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      background: none; border: 1.5px solid var(--border);
+      color: rgba(44,40,38,0.6); padding: 12px 32px;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.75rem;
+      letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-ghost:hover { border-color: var(--wine); color: var(--wine); }
+    .btn-row { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+
+    /* ── Error toast ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: #c0392b; color: #fff; padding: 12px 24px; border-radius: 4px;
+      font-size: 0.85rem; z-index: 500; transition: transform 0.3s ease;
+      max-width: 90vw; text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="hdr">
+    <a href="index.html">
+      <img src="./Brand asset/Brand logo.png" alt="Beautiful Nails">
+    </a>
+    <div class="hdr-sep"></div>
+    <span class="hdr-title">Afspraak maken</span>
+  </header>
+
+  <!-- Steps indicator -->
+  <div class="steps" id="stepsBar">
+    <div class="step-item">
+      <div class="step-wrap">
+        <div class="step-circle active" id="sc1">1</div>
+        <div class="step-label active" id="sl1">Dienst</div>
+      </div>
+      <div class="step-connector"></div>
+    </div>
+    <div class="step-item">
+      <div class="step-wrap">
+        <div class="step-circle" id="sc2">2</div>
+        <div class="step-label" id="sl2">Datum</div>
+      </div>
+      <div class="step-connector"></div>
+    </div>
+    <div class="step-item">
+      <div class="step-wrap">
+        <div class="step-circle" id="sc3">3</div>
+        <div class="step-label" id="sl3">Gegevens</div>
+      </div>
+      <div class="step-connector"></div>
+    </div>
+    <div class="step-wrap">
+      <div class="step-circle" id="sc4">4</div>
+      <div class="step-label" id="sl4">Bevestiging</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- ── STEP 1: Service selection ── -->
+    <div class="step-panel active" id="panel1">
+      <h2 class="panel-title">Kies je behandeling</h2>
+      <p class="panel-sub">Selecteer de behandeling die je wilt boeken</p>
+
+      <div class="cat-tabs" id="catTabs"></div>
+      <div class="services-grid" id="servicesGrid"></div>
+
+      <div class="btn-row">
+        <button class="btn" id="btn1Next" disabled onclick="goStep(2)">Volgende →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Date & Time ── -->
+    <div class="step-panel" id="panel2">
+      <div class="recap-bar" id="recapBar2"></div>
+      <h2 class="panel-title">Kies datum & tijd</h2>
+      <p class="panel-sub">Zondag zijn we gesloten</p>
+
+      <div class="cal-layout">
+        <div class="cal-wrap">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" id="calPrev" onclick="changeMonth(-1)">‹</button>
+            <span class="cal-month" id="calTitle"></span>
+            <button class="cal-nav-btn" id="calNext" onclick="changeMonth(1)">›</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <div class="slots-wrap">
+          <div class="slots-date" id="slotsDate">Selecteer een datum</div>
+          <div id="slotsContainer"><p class="slots-empty">← Kies eerst een datum</p></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goStep(1)">← Terug</button>
+        <button class="btn" id="btn2Next" disabled onclick="goStep(3)">Volgende →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Personal info ── -->
+    <div class="step-panel" id="panel3">
+      <div class="recap-bar" id="recapBar3"></div>
+      <h2 class="panel-title">Jouw gegevens</h2>
+      <p class="panel-sub">Vul je gegevens in zodat we contact op kunnen nemen</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Voornaam</label>
+          <input type="text" id="fVoornaam" placeholder="Voornaam" autocomplete="given-name">
+          <span class="field-err" id="errVoornaam">Vul je voornaam in</span>
+        </div>
+        <div class="field">
+          <label>Achternaam</label>
+          <input type="text" id="fAchternaam" placeholder="Achternaam" autocomplete="family-name">
+          <span class="field-err" id="errAchternaam">Vul je achternaam in</span>
+        </div>
+        <div class="field">
+          <label>Telefoonnummer</label>
+          <input type="tel" id="fPhone" placeholder="06 12345678" autocomplete="tel">
+          <span class="field-err" id="errPhone">Vul een geldig telefoonnummer in</span>
+        </div>
+        <div class="field">
+          <label>E-mailadres</label>
+          <input type="email" id="fEmail" placeholder="naam@email.nl" autocomplete="email">
+          <span class="field-err" id="errEmail">Vul een geldig e-mailadres in</span>
+        </div>
+        <div class="field full">
+          <label>Geboortedatum</label>
+          <input type="date" id="fDob" autocomplete="bday">
+          <span class="field-err" id="errDob">Vul je geboortedatum in</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goStep(2)">← Terug</button>
+        <button class="btn" onclick="validateStep3()">Volgende →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Confirmation ── -->
+    <div class="step-panel" id="panel4">
+      <h2 class="panel-title">Bevestig je afspraak</h2>
+      <p class="panel-sub">Controleer je gegevens en bevestig de afspraak</p>
+
+      <div class="confirm-card" id="confirmCard"></div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="goStep(3)">← Terug</button>
+        <button class="btn" id="btnConfirm" onclick="submitBooking()">Afspraak bevestigen</button>
+      </div>
+    </div>
+
+    <!-- ── SUCCESS ── -->
+    <div class="success-screen" id="successScreen">
+      <div class="success-icon">✓</div>
+      <h2 class="font-display" style="font-style:italic; font-size:1.8rem; color:var(--wine); margin-bottom:12px;">
+        Afspraak bevestigd!
+      </h2>
+      <p style="color:rgba(44,40,38,0.6); margin-bottom:32px; max-width:360px; margin-left:auto; margin-right:auto;">
+        We hebben je afspraak ontvangen. We nemen contact op als er iets verandert.
+      </p>
+      <div id="successSummary" style="max-width:400px; margin:0 auto 32px;"></div>
+      <a href="index.html" class="btn">Terug naar de website</a>
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── Supabase ──────────────────────────────────────────────
+    const { createClient } = supabase;
+    const sb = createClient(
+      'https://cgnkwhcsyzhrymfrensd.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnbmt3aGNzeXpocnltZnJlbnNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTEzNDAsImV4cCI6MjA4ODE4NzM0MH0.ZPyQjFvLfaFpWs4b0il61dxyfnwT3cBlVHrAXqR3-Ak'
+    );
+
+    // ── Services ─────────────────────────────────────────────
+    const SERVICES = [
+      { cat: 'Acryl Nagels', name: 'Nieuwe Set (Naturel)',          price: '€ 40',    dur: 60 },
+      { cat: 'Acryl Nagels', name: 'Opvullen (Naturel)',            price: '€ 35',    dur: 45 },
+      { cat: 'Acryl Nagels', name: 'Nagelversteviging',             price: '€ 45',    dur: 45 },
+      { cat: 'Acryl Nagels', name: 'Nagelreparatie',                price: '€ 5',     dur: 5  },
+      { cat: 'Acryl Nagels', name: 'Nieuwe Set Roze Poeder',        price: '€ 45',    dur: 60 },
+      { cat: 'Acryl Nagels', name: 'Opvullen Roze Poeder',          price: '€ 38',    dur: 45 },
+      { cat: 'Acryl Nagels', name: 'Nieuwe Set Babyboom',           price: '€ 55',    dur: 60 },
+      { cat: 'Acryl Nagels', name: 'Opvullen Babyboom',             price: '€ 45',    dur: 45 },
+      { cat: 'Acryl Nagels', name: 'Nieuwe Set Solar (Gel)',         price: '€ 45',    dur: 60 },
+      { cat: 'Acryl Nagels', name: 'Opvullen Solar (Gel)',           price: '€ 40',    dur: 45 },
+      { cat: 'Acryl Nagels', name: 'Afhalen nepnagels',             price: '€ 17',    dur: 20 },
+      { cat: 'Acryl Nagels', name: 'Nieuwe Set (Gellak)',           price: '€ 50',    dur: 60 },
+      { cat: 'Acryl Nagels', name: 'Gellak Afhalen + Nieuwe Gellak',price: '€ 27',    dur: 30 },
+      { cat: 'Acryl Nagels', name: 'Normale lak',                   price: '€ 10',    dur: 15 },
+      { cat: 'Gellak',       name: 'Gellak',                        price: '€ 25',    dur: 20 },
+      { cat: 'Gellak',       name: 'French Gellak',                 price: '€ 30',    dur: 30 },
+      { cat: 'Gellak',       name: 'Manicure (Gellak)',             price: '€ 30',    dur: 30 },
+      { cat: 'Gellak',       name: 'French Manicure (Gellak) Verwijderen', price: '€ 35', dur: 35 },
+      { cat: 'Gellak',       name: 'Pedicure (Gellak)',             price: '€ 45',    dur: 45 },
+      { cat: 'Gellak',       name: 'French Pedicure (Gellak)',      price: '€ 48',    dur: 50 },
+      { cat: 'Gellak',       name: 'Afhalen Gellak',                price: '€ 10',    dur: 5  },
+      { cat: 'Spa',          name: 'Pedicure',                      price: '€ 35',    dur: 20 },
+      { cat: 'Spa',          name: 'Manicure',                      price: '€ 20',    dur: 40 },
+      { cat: 'Spa',          name: 'French Manicure (Nagellak)',    price: '€ 30',    dur: 30 },
+      { cat: 'Spa',          name: 'French Pedicure (Nagellak)',    price: '€ 35',    dur: 35 },
+      { cat: 'Kinderen',     name: 'Kinderen nagels lakken (<5 jr)', price: 'Gratis', dur: 15 },
+    ];
+
+    // ── Opening hours (day index: [startHour, endHour]) ──────
+    const HOURS = { 0: null, 1: [11,18], 2: [10,18], 3: [10,18], 4: [10,18], 5: [10,21], 6: [10,17] };
+
+    // ── State ─────────────────────────────────────────────────
+    let state = {
+      step: 1,
+      service: null,
+      calYear: new Date().getFullYear(),
+      calMonth: new Date().getMonth(),
+      selDate: null,
+      selTime: null,
+      bookedSlots: [],
+    };
+
+    // ── Dutch month/day names ─────────────────────────────────
+    const MONTHS_NL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+    const DAYS_NL   = ['Zo','Ma','Di','Wo','Do','Vr','Za'];
+    const DAYS_FULL = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+
+    // ── Init ──────────────────────────────────────────────────
+    (function init() {
+      const cats = [...new Set(SERVICES.map(s => s.cat))];
+      const tabsEl = document.getElementById('catTabs');
+      tabsEl.innerHTML = cats.map((c,i) =>
+        `<button class="cat-tab${i===0?' active':''}" onclick="filterCat('${c}',this)">${c}</button>`
+      ).join('');
+      renderServices(cats[0]);
+    })();
+
+    function filterCat(cat, el) {
+      document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderServices(cat);
+    }
+
+    function renderServices(cat) {
+      const grid = document.getElementById('servicesGrid');
+      const filtered = SERVICES.filter(s => s.cat === cat);
+      grid.innerHTML = filtered.map((s, i) => {
+        const sel = state.service && state.service.name === s.name ? ' selected' : '';
+        return `<div class="svc-card${sel}" onclick="selectService(${SERVICES.indexOf(s)})">
+          <div class="svc-name">${s.name}</div>
+          <div class="svc-meta">
+            <span class="svc-price">${s.price}</span>
+            <span class="svc-dur">${s.dur} min</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function selectService(idx) {
+      state.service = SERVICES[idx];
+      // Re-render current category to update selection
+      const activeTab = document.querySelector('.cat-tab.active');
+      if (activeTab) renderServices(activeTab.textContent);
+      document.getElementById('btn1Next').disabled = false;
+    }
+
+    // ── Calendar ──────────────────────────────────────────────
+    function renderCalendar() {
+      const y = state.calYear, m = state.calMonth;
+      document.getElementById('calTitle').textContent = `${MONTHS_NL[m]} ${y}`;
+      const grid = document.getElementById('calGrid');
+      const today = new Date(); today.setHours(0,0,0,0);
+      const firstDay = new Date(y, m, 1).getDay(); // 0=Sun
+      const daysInMonth = new Date(y, m+1, 0).getDate();
+
+      let html = DAYS_NL.map(d => `<div class="cal-dow">${d}</div>`).join('');
+      // Empty cells before first day
+      for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(y, m, d);
+        const dow = date.getDay();
+        const isPast = date < today;
+        const isClosed = !HOURS[dow];
+        const isToday = date.getTime() === today.getTime();
+        const isSel = state.selDate &&
+          state.selDate.getFullYear() === y &&
+          state.selDate.getMonth() === m &&
+          state.selDate.getDate() === d;
+        let cls = 'cal-day';
+        if (isPast || isClosed) cls += ' ' + (isClosed ? 'closed' : 'past');
+        else if (isSel) cls += ' selected';
+        else if (isToday) cls += ' today';
+        const clickable = !isPast && !isClosed;
+        html += `<button class="${cls}" ${clickable ? `onclick="selectDate(${y},${m},${d})"` : 'disabled'}>${d}</button>`;
+      }
+      grid.innerHTML = html;
+    }
+
+    function changeMonth(dir) {
+      state.calMonth += dir;
+      if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
+      if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
+      renderCalendar();
+    }
+
+    async function selectDate(y, m, d) {
+      state.selDate = new Date(y, m, d);
+      state.selTime = null;
+      document.getElementById('btn2Next').disabled = true;
+      renderCalendar();
+
+      const dow = state.selDate.getDay();
+      const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dayNames = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+      document.getElementById('slotsDate').textContent =
+        `${dayNames[dow].charAt(0).toUpperCase()+dayNames[dow].slice(1)} ${d} ${MONTHS_NL[m]}`;
+
+      const container = document.getElementById('slotsContainer');
+      container.innerHTML = '<p class="slots-loading">Beschikbaarheid laden…</p>';
+
+      // Fetch existing bookings for this date
+      const { data, error } = await sb.from('appointments')
+        .select('appointment_time, service_duration')
+        .eq('appointment_date', dateStr)
+        .neq('status', 'cancelled');
+
+      if (error) { container.innerHTML = '<p class="slots-empty">Fout bij laden</p>'; return; }
+
+      const booked = (data || []).map(r => {
+        const [h, min] = r.appointment_time.split(':').map(Number);
+        return { start: h * 60 + min, dur: r.service_duration };
+      });
+
+      const slots = generateSlots(dow, state.service.dur, booked);
+      if (!slots.length) {
+        container.innerHTML = '<p class="slots-empty">Geen beschikbare tijden op deze dag</p>';
+        return;
+      }
+      container.innerHTML = `<div class="slots-grid">${
+        slots.map(s => `<button class="slot-btn" onclick="selectTime('${s.label}',this)">${s.label}</button>`).join('')
+      }</div>`;
+    }
+
+    function generateSlots(dow, dur, booked) {
+      const h = HOURS[dow];
+      if (!h) return [];
+      const [startH, endH] = h;
+      const slots = [];
+      for (let m = startH * 60; m + dur <= endH * 60; m += 15) {
+        const overlaps = booked.some(b => m < b.start + b.dur && m + dur > b.start);
+        if (!overlaps) slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}` });
+      }
+      return slots;
+    }
+
+    function selectTime(t, el) {
+      document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      state.selTime = t;
+      document.getElementById('btn2Next').disabled = false;
+    }
+
+    // ── Navigation ────────────────────────────────────────────
+    function goStep(n) {
+      state.step = n;
+      document.querySelectorAll('.step-panel').forEach((p,i) => p.classList.toggle('active', i+1===n));
+      // Update step circles
+      for (let i = 1; i <= 4; i++) {
+        const c = document.getElementById('sc'+i);
+        const l = document.getElementById('sl'+i);
+        c.className = 'step-circle' + (i < n ? ' done' : i === n ? ' active' : '');
+        l.className = 'step-label' + (i === n ? ' active' : '');
+        if (i < n) c.innerHTML = '✓';
+        else c.textContent = i;
+      }
+      if (n === 2) { renderCalendar(); updateRecap('recapBar2'); }
+      if (n === 3) updateRecap('recapBar3');
+      if (n === 4) buildConfirmCard();
+      window.scrollTo(0,0);
+    }
+
+    function updateRecap(id) {
+      const s = state.service;
+      let extra = '';
+      if (id === 'recapBar3' && state.selDate && state.selTime) {
+        const d = state.selDate;
+        extra = ` &nbsp;·&nbsp; ${d.getDate()} ${MONTHS_NL[d.getMonth()]} &nbsp;·&nbsp; ${state.selTime}`;
+      }
+      document.getElementById(id).innerHTML = `
+        <div>
+          <div class="svc-name">${s.name}</div>
+          <div class="svc-meta">
+            <span class="svc-price">${s.price}</span>
+            <span class="svc-dur">${s.dur} min</span>
+            ${extra ? `<span style="font-size:0.78rem;color:rgba(44,40,38,0.5);">${extra}</span>` : ''}
+          </div>
+        </div>`;
+    }
+
+    // ── Step 3 validation ─────────────────────────────────────
+    function validateStep3() {
+      const fields = [
+        { id: 'fVoornaam',  errId: 'errVoornaam',  check: v => v.trim().length > 0 },
+        { id: 'fAchternaam',errId: 'errAchternaam', check: v => v.trim().length > 0 },
+        { id: 'fPhone',     errId: 'errPhone',      check: v => /^[\d\s\-+()]{6,}$/.test(v.trim()) },
+        { id: 'fEmail',     errId: 'errEmail',      check: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) },
+        { id: 'fDob',       errId: 'errDob',        check: v => !!v },
+      ];
+      let ok = true;
+      fields.forEach(f => {
+        const inp = document.getElementById(f.id);
+        const err = document.getElementById(f.errId);
+        const valid = f.check(inp.value);
+        inp.classList.toggle('error', !valid);
+        err.classList.toggle('show', !valid);
+        if (!valid) ok = false;
+      });
+      if (ok) goStep(4);
+    }
+
+    // ── Confirm card ──────────────────────────────────────────
+    function buildConfirmCard() {
+      const d = state.selDate;
+      const dow = DAYS_FULL[d.getDay()];
+      const rows = [
+        ['Behandeling', state.service.name],
+        ['Prijs',       state.service.price],
+        ['Duur',        state.service.dur + ' minuten'],
+        ['Datum',       `${dow.charAt(0).toUpperCase()+dow.slice(1)} ${d.getDate()} ${MONTHS_NL[d.getMonth()]} ${d.getFullYear()}`],
+        ['Tijd',        state.selTime],
+        ['Naam',        `${document.getElementById('fVoornaam').value} ${document.getElementById('fAchternaam').value}`],
+        ['Telefoon',    document.getElementById('fPhone').value],
+        ['E-mail',      document.getElementById('fEmail').value],
+        ['Geboortedatum', document.getElementById('fDob').value],
+      ];
+      document.getElementById('confirmCard').innerHTML = `
+        <h3>Overzicht afspraak</h3>
+        ${rows.map(([l,v]) => `<div class="confirm-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('')}`;
+    }
+
+    // ── Submit ────────────────────────────────────────────────
+    async function submitBooking() {
+      const btn = document.getElementById('btnConfirm');
+      btn.disabled = true; btn.textContent = 'Bezig…';
+
+      const d = state.selDate;
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const fullName = `${document.getElementById('fVoornaam').value.trim()} ${document.getElementById('fAchternaam').value.trim()}`;
+
+      const { error } = await sb.from('appointments').insert([{
+        name:             fullName,
+        phone:            document.getElementById('fPhone').value.trim(),
+        email:            document.getElementById('fEmail').value.trim(),
+        date_of_birth:    document.getElementById('fDob').value,
+        service_name:     state.service.name,
+        service_duration: state.service.dur,
+        service_price:    state.service.price,
+        appointment_date: dateStr,
+        appointment_time: state.selTime + ':00',
+        status:           'pending',
+      }]);
+
+      if (error) {
+        btn.disabled = false; btn.textContent = 'Afspraak bevestigen';
+        showToast('Er ging iets mis. Probeer opnieuw.');
+        return;
+      }
+
+      // Show success
+      document.getElementById('stepsBar').style.display = 'none';
+      document.querySelectorAll('.step-panel').forEach(p => p.style.display = 'none');
+      const ss = document.getElementById('successScreen');
+      ss.classList.add('show');
+      const dow = DAYS_FULL[d.getDay()];
+      document.getElementById('successSummary').innerHTML = `
+        <div class="confirm-card" style="text-align:left;">
+          <div class="confirm-row"><span class="lbl">Behandeling</span><span class="val">${state.service.name}</span></div>
+          <div class="confirm-row"><span class="lbl">Datum</span><span class="val">${dow.charAt(0).toUpperCase()+dow.slice(1)} ${d.getDate()} ${MONTHS_NL[d.getMonth()]}</span></div>
+          <div class="confirm-row"><span class="lbl">Tijd</span><span class="val">${state.selTime}</span></div>
+          <div class="confirm-row" style="border:none;"><span class="lbl">Duur</span><span class="val">${state.service.dur} min</span></div>
+        </div>`;
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 4000);
+    }
+  </script>
+</body>
+</html>
