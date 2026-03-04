@@ -4,19 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard – Beautiful Nails</title>
+  <link rel="icon" type="image/png" href="brand_assets/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Tenor+Sans&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --bg:      #141414;
-      --surface: #1e1e1e;
-      --raised:  #272727;
-      --border:  rgba(255,255,255,0.07);
+      --bg:      #F6F1EB;
+      --surface: #EDE8E1;
+      --raised:  #E4DED7;
+      --border:  rgba(44,40,38,0.1);
       --wine:    #7c3a3a;
-      --wine-lt: #a05050;
+      --wine-lt: #9c4a4a;
       --cream:   #f7f2ec;
-      --text:    rgba(247,242,236,0.85);
-      --muted:   rgba(247,242,236,0.38);
+      --text:    rgba(44,40,38,0.92);
+      --muted:   rgba(44,40,38,0.5);
       --hour-h:  64px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,6 +26,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: 'Tenor Sans', sans-serif;
+      font-weight: 600;
       -webkit-font-smoothing: antialiased;
     }
     .font-display { font-family: 'Tenor Sans', sans-serif; }
@@ -39,10 +41,10 @@
       width: 100%; max-width: 360px; padding: 0 20px;
       text-align: center;
     }
-    .login-box img { height: 40px; margin-bottom: 32px; filter: brightness(0) invert(1); opacity: 0.7; }
+    .login-box img { height: 40px; margin-bottom: 32px; filter: brightness(0); opacity: 0.8; }
     .login-box h2 {
       font-family: 'Tenor Sans', sans-serif;
-      font-size: 1.5rem; color: #fff; margin-bottom: 8px;
+      font-size: 1.5rem; color: var(--text); margin-bottom: 8px; font-weight: 700;
     }
     .login-box p { font-size: 0.8rem; color: var(--muted); margin-bottom: 28px; }
     .login-field {
@@ -81,7 +83,7 @@
       height: 56px;
       display: flex; align-items: center; gap: 16px;
     }
-    .topbar img { height: 28px; filter: brightness(0) invert(1); opacity: 0.65; flex-shrink: 0; }
+    .topbar img { height: 28px; filter: brightness(0); opacity: 0.7; flex-shrink: 0; }
     .tb-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
     .tb-nav { display: flex; align-items: center; gap: 8px; }
     .tb-btn {
@@ -91,7 +93,7 @@
       display: flex; align-items: center; justify-content: center;
       transition: border-color 0.15s, color 0.15s;
     }
-    .tb-btn:hover { border-color: var(--wine-lt); color: #fff; }
+    .tb-btn:hover { border-color: var(--wine-lt); color: var(--wine); }
     .tb-today {
       background: none; border: 1px solid var(--border);
       color: var(--text); padding: 0 14px; height: 30px;
@@ -103,7 +105,7 @@
     .tb-today:hover { border-color: var(--wine-lt); }
     .tb-range {
       font-family: 'Tenor Sans', sans-serif;
-      font-size: 0.95rem; color: rgba(247,242,236,0.75);
+      font-size: 0.95rem; color: var(--text); font-weight: 700;
     }
     .tb-spacer { flex: 1; }
     .tb-count {
@@ -190,10 +192,10 @@
       padding: 8px; border: 1px solid var(--border);
       transition: border-color 0.15s;
     }
-    .month-cell:hover { border-color: rgba(255,255,255,0.15); }
+    .month-cell:hover { border-color: rgba(44,40,38,0.2); }
     .month-cell.other-month { opacity: 0.35; }
     .month-cell.today { border-color: var(--wine); }
-    .month-cell.closed { background: rgba(255,255,255,0.02); }
+    .month-cell.closed { background: rgba(44,40,38,0.03); }
     .mc-num { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
     .mc-num.today-num { color: var(--wine-lt); font-weight: 700; }
     .mc-appt {
@@ -218,7 +220,7 @@
       position: fixed; z-index: 200;
       background: var(--raised); border: 1px solid var(--border);
       border-radius: 6px; padding: 16px; width: 240px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 24px rgba(44,40,38,0.14), 0 1px 4px rgba(44,40,38,0.08);
       display: none;
     }
     .popover.show { display: block; }
@@ -227,7 +229,7 @@
       background: none; border: none; color: var(--muted);
       cursor: pointer; font-size: 1rem; line-height: 1;
     }
-    .popover-name { font-size: 0.9rem; color: #fff; margin-bottom: 10px; font-weight: 600; }
+    .popover-name { font-size: 0.9rem; color: var(--text); margin-bottom: 10px; font-weight: 700; }
     .popover-row { font-size: 0.78rem; color: var(--muted); margin-bottom: 5px; }
     .popover-row span { color: var(--text); }
     .popover-status {

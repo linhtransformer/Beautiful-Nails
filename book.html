@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Afspraak maken – Beautiful Nails</title>
+  <link rel="icon" type="image/png" href="brand_assets/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600;1,700&family=Tenor+Sans&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -193,8 +194,9 @@
       color: var(--dark); text-align: center;
       transition: border-color 0.15s, background 0.15s, color 0.15s;
     }
-    .slot-btn:hover { border-color: var(--wine); color: var(--wine); }
+    .slot-btn:hover:not(:disabled) { border-color: var(--wine); color: var(--wine); }
     .slot-btn.selected { background: var(--wine); color: var(--cream); border-color: var(--wine); }
+    .slot-btn:disabled { background: #f0eded; color: rgba(44,40,38,0.28); border-color: rgba(44,40,38,0.1); cursor: not-allowed; text-decoration: line-through; }
     .slots-empty { font-size: 0.82rem; color: rgba(44,40,38,0.45); text-align: center; padding: 24px 0; }
     .slots-loading { font-size: 0.82rem; color: var(--muted); text-align: center; padding: 24px 0; }
 
@@ -668,7 +670,10 @@
         return;
       }
       container.innerHTML = `<div class="slots-grid">${
-        slots.map(s => `<button class="slot-btn" onclick="selectTime('${s.label}',this)">${s.label}</button>`).join('')
+        slots.map(s => s.taken
+          ? `<button class="slot-btn" disabled title="Bezet">${s.label}</button>`
+          : `<button class="slot-btn" onclick="selectTime('${s.label}',this)">${s.label}</button>`
+        ).join('')
       }</div>`;
     }
 
@@ -679,7 +684,7 @@
       const slots = [];
       for (let m = startH * 60; m + dur <= endH * 60; m += 15) {
         const overlaps = booked.some(b => m < b.start + b.dur && m + dur > b.start);
-        if (!overlaps) slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}` });
+        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken: overlaps });
       }
       return slots;
     }
