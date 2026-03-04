@@ -683,8 +683,8 @@
       const [startH, endH] = h;
       const slots = [];
       for (let m = startH * 60; m + dur <= endH * 60; m += 15) {
-        const overlaps = booked.some(b => m < b.start + b.dur && m + dur > b.start);
-        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken: overlaps });
+        const taken = booked.some(b => m === b.start);
+        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken });
       }
       return slots;
     }
