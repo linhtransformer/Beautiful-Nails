@@ -285,6 +285,29 @@
     .btn-ghost:hover { border-color: var(--wine); color: var(--wine); }
     .btn-row { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
 
+    /* ── Custom service input ── */
+    .custom-svc-input {
+      display: block; margin-top: 10px; width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border); border-radius: 4px;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.82rem;
+      color: var(--dark); background: rgba(255,255,255,0.6);
+      resize: vertical; min-height: 72px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .custom-svc-input:focus { border-color: var(--wine); }
+
+    /* ── Notes textarea ── */
+    .notes-input {
+      border: 1.5px solid var(--border);
+      border-radius: 4px; padding: 11px 14px;
+      font-family: 'Tenor Sans', sans-serif; font-size: 0.9rem;
+      background: #fff; color: var(--dark);
+      transition: border-color 0.2s ease;
+      outline: none; resize: vertical; min-height: 88px; width: 100%;
+    }
+    .notes-input:focus { border-color: var(--wine); }
+
     /* ── Error toast ── */
     .toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
@@ -410,6 +433,10 @@
           <input type="date" id="fDob" autocomplete="bday">
           <span class="field-err" id="errDob">Vul je geboortedatum in</span>
         </div>
+        <div class="field full">
+          <label>Notities (optioneel)</label>
+          <textarea id="fNotes" class="notes-input" placeholder="Bijzondere wensen, allergieën of overige opmerkingen…"></textarea>
+        </div>
       </div>
 
       <div class="btn-row">
@@ -485,6 +512,7 @@
       { cat: 'Spa',          name: 'French Manicure (Nagellak)',    price: '€ 30',    dur: 30 },
       { cat: 'Spa',          name: 'French Pedicure (Nagellak)',    price: '€ 35',    dur: 35 },
       { cat: 'Kinderen',     name: 'Kinderen nagels lakken (<5 jr)', price: 'Gratis', dur: 15 },
+      { cat: 'Anders',       name: 'Anders', price: 'Op aanvraag', dur: 60, isCustom: true },
     ];
 
     // ── Opening hours (day index: [startHour, endHour]) ──────
@@ -524,6 +552,19 @@
 
     function renderServices(cat) {
       const grid = document.getElementById('servicesGrid');
+      if (cat === 'Anders') {
+        const isSelected = state.service && state.service.isCustom;
+        const currentText = (state.service && state.service.customText) || '';
+        grid.innerHTML = `<div class="svc-card${isSelected ? ' selected' : ''}" id="customSvcCard" onclick="selectCustomCard(this)" style="max-width:480px;">
+          <div class="svc-name">Anders / eigen wens</div>
+          <div class="svc-meta" style="margin-bottom:8px;">
+            <span class="svc-price">Op aanvraag</span>
+            <span class="svc-dur">± 60 min</span>
+          </div>
+          <textarea class="custom-svc-input" id="customSvcInput" placeholder="Beschrijf je wens, bijv. nagelverlenging met specifiek design…" onclick="event.stopPropagation()" oninput="updateCustomSvc(this.value)">${currentText}</textarea>
+        </div>`;
+        return;
+      }
       const filtered = SERVICES.filter(s => s.cat === cat);
       grid.innerHTML = filtered.map((s, i) => {
         const sel = state.service && state.service.name === s.name ? ' selected' : '';
@@ -543,6 +584,20 @@
       const activeTab = document.querySelector('.cat-tab.active');
       if (activeTab) renderServices(activeTab.textContent);
       document.getElementById('btn1Next').disabled = false;
+    }
+
+    function selectCustomCard(el) {
+      document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      const text = document.getElementById('customSvcInput')?.value || '';
+      state.service = { cat: 'Anders', name: text.trim() ? 'Anders: ' + text.trim() : 'Anders', price: 'Op aanvraag', dur: 60, isCustom: true, customText: text };
+      document.getElementById('btn1Next').disabled = false;
+    }
+
+    function updateCustomSvc(value) {
+      if (!state.service || !state.service.isCustom) return;
+      state.service.customText = value;
+      state.service.name = value.trim() ? 'Anders: ' + value.trim() : 'Anders';
     }
 
     // ── Calendar ──────────────────────────────────────────────
@@ -703,6 +758,7 @@
     function buildConfirmCard() {
       const d = state.selDate;
       const dow = DAYS_FULL[d.getDay()];
+      const notes = document.getElementById('fNotes').value.trim();
       const rows = [
         ['Behandeling', state.service.name],
         ['Prijs',       state.service.price],
@@ -713,6 +769,7 @@
         ['Telefoon',    document.getElementById('fPhone').value],
         ['E-mail',      document.getElementById('fEmail').value],
         ['Geboortedatum', document.getElementById('fDob').value],
+        ...(notes ? [['Notities', notes]] : []),
       ];
       document.getElementById('confirmCard').innerHTML = `
         <h3>Overzicht afspraak</h3>
@@ -739,6 +796,7 @@
         appointment_date: dateStr,
         appointment_time: state.selTime + ':00',
         status:           'pending',
+        notes:            document.getElementById('fNotes').value.trim() || null,
       }]);
 
       if (error) {

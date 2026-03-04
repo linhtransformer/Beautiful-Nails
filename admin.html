@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard – Beautiful Nails</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Tenor+Sans&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tenor+Sans&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -27,7 +27,7 @@
       font-family: 'Tenor Sans', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    .font-display { font-family: 'Playfair Display', serif; }
+    .font-display { font-family: 'Tenor Sans', sans-serif; }
 
     /* ── Login overlay ── */
     #loginOverlay {
@@ -41,7 +41,7 @@
     }
     .login-box img { height: 40px; margin-bottom: 32px; filter: brightness(0) invert(1); opacity: 0.7; }
     .login-box h2 {
-      font-family: 'Playfair Display', serif; font-style: italic;
+      font-family: 'Tenor Sans', sans-serif;
       font-size: 1.5rem; color: #fff; margin-bottom: 8px;
     }
     .login-box p { font-size: 0.8rem; color: var(--muted); margin-bottom: 28px; }
@@ -102,7 +102,7 @@
     }
     .tb-today:hover { border-color: var(--wine-lt); }
     .tb-range {
-      font-family: 'Playfair Display', serif; font-style: italic;
+      font-family: 'Tenor Sans', sans-serif;
       font-size: 0.95rem; color: rgba(247,242,236,0.75);
     }
     .tb-spacer { flex: 1; }
@@ -110,7 +110,7 @@
       font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
       color: var(--muted);
     }
-    .tb-count span { color: var(--wine-lt); font-size: 1rem; font-style: italic; font-family: 'Playfair Display', serif; }
+    .tb-count span { color: var(--wine-lt); font-size: 1rem; font-family: 'Tenor Sans', sans-serif; }
     .view-toggle { display: flex; gap: 2px; background: var(--bg); border-radius: 4px; padding: 3px; }
     .view-btn {
       background: none; border: none; cursor: pointer;
@@ -139,8 +139,8 @@
       color: var(--muted); border-right: 1px solid var(--border);
     }
     .week-day-hdr .day-num {
-      display: block; font-size: 1.3rem; font-family: 'Playfair Display', serif;
-      font-style: italic; color: var(--text); margin-top: 2px; line-height: 1;
+      display: block; font-size: 1.3rem; font-family: 'Tenor Sans', sans-serif;
+      color: var(--text); margin-top: 2px; line-height: 1;
     }
     .week-day-hdr.today .day-num {
       color: var(--cream); background: var(--wine);
@@ -210,7 +210,7 @@
       background: var(--surface); border-bottom: 1px solid var(--border);
       padding: 12px 20px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
     }
-    .day-title { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.2rem; color: var(--text); }
+    .day-title { font-family: 'Tenor Sans', sans-serif; font-size: 1.2rem; color: var(--text); }
     .day-body { flex: 1; overflow-y: auto; display: flex; }
 
     /* ── Popover ── */
@@ -302,6 +302,7 @@
     <div class="popover-row">Duur: <span id="popDur"></span></div>
     <div class="popover-row">Tel: <span id="popPhone"></span></div>
     <div class="popover-row">Email: <span id="popEmail"></span></div>
+    <div class="popover-row" id="popNotesRow" style="display:none;">Notities: <span id="popNotes"></span></div>
     <div><span class="popover-status" id="popStatus"></span></div>
     <div class="popover-actions">
       <button class="pact-btn confirm" id="pActConfirm" onclick="updateStatus('confirmed')">Bevestigen</button>
@@ -639,6 +640,13 @@
       document.getElementById('popDur').textContent   = appt.service_duration + ' min · ' + appt.service_price;
       document.getElementById('popPhone').textContent = appt.phone;
       document.getElementById('popEmail').textContent = appt.email;
+      const notesRow = document.getElementById('popNotesRow');
+      if (appt.notes) {
+        document.getElementById('popNotes').textContent = appt.notes;
+        notesRow.style.display = 'block';
+      } else {
+        notesRow.style.display = 'none';
+      }
       const st = document.getElementById('popStatus');
       st.textContent = appt.status;
       st.className = 'popover-status ' + (appt.status === 'confirmed' ? 'confirmed' : appt.status === 'cancelled' ? 'cancelled' : '');
