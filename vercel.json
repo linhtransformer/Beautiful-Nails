@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/admin.html",
+      "has": [{ "type": "host", "value": "admin.nagelstudiobeautifulnails.nl" }]
+    }
+  ]
+}
