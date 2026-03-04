@@ -260,9 +260,12 @@
       <h2>Dashboard</h2>
       <p>Alleen voor medewerkers</p>
       <div class="login-field">
+        <input type="email" id="emailInput" placeholder="E-mailadres" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="login-field">
         <input type="password" id="pwInput" placeholder="Wachtwoord" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
-      <div class="login-err" id="loginErr">Onjuist wachtwoord</div>
+      <div class="login-err" id="loginErr">Onjuist e-mailadres of wachtwoord</div>
       <button class="login-btn" onclick="doLogin()">Inloggen</button>
     </div>
   </div>
@@ -321,29 +324,28 @@
     );
 
     // ── Auth ──────────────────────────────────────────────────
-    const HASH = '410b528299140a7c7d025a6ea3fd14535fa3e1deca167908d4fff7a3dcca1c1a'; // sha256(Zang1909)
-
     async function doLogin() {
-      const pw = document.getElementById('pwInput').value;
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
-      const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-      if (hash !== HASH) {
-        document.getElementById('loginErr').classList.add('show');
-        return;
-      }
-      sessionStorage.setItem('bn_auth', '1');
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('app').classList.add('show');
-      await loadAppointments();
-      renderView();
-      subscribeRealtime();
+      const email = document.getElementById('emailInput').value.trim();
+      const pw    = document.getElementById('pwInput').value;
+      const errEl = document.getElementById('loginErr');
+      errEl.classList.remove('show');
+
+      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if (error) { errEl.classList.add('show'); return; }
+
+      showApp();
     }
 
-    // Check if already logged in
-    if (sessionStorage.getItem('bn_auth') === '1') {
+    function showApp() {
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('app').classList.add('show');
+      loadAppointments().then(() => { renderView(); subscribeRealtime(); });
     }
+
+    // Resume existing session on page load
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) showApp();
+    });
 
     // ── State ─────────────────────────────────────────────────
     let view = 'week';
@@ -689,10 +691,6 @@
         .subscribe();
     }
 
-    // ── Boot ──────────────────────────────────────────────────
-    if (sessionStorage.getItem('bn_auth') === '1') {
-      loadAppointments().then(() => { renderView(); subscribeRealtime(); });
-    }
   </script>
 </body>
 </html>
