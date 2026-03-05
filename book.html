@@ -110,6 +110,37 @@
     .cat-tab:hover { border-color: var(--wine); color: var(--wine); }
     .cat-tab.active { background: var(--wine); color: var(--cream); border-color: var(--wine); }
 
+    /* ── Selection summary ── */
+    .selection-summary {
+      display: none;
+      background: var(--wine-light);
+      border: 1px solid rgba(124,58,58,0.25);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-top: 20px;
+    }
+    .selection-summary.visible { display: block; }
+    .selection-summary-title {
+      font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .selection-item {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.82rem; padding: 5px 0;
+      border-bottom: 1px solid rgba(124,58,58,0.08);
+    }
+    .selection-item:last-of-type { border-bottom: none; }
+    .selection-item-name { color: var(--dark); }
+    .selection-item-price { color: var(--wine); font-weight: 600; font-size: 0.78rem; }
+    .selection-total {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 10px; margin-top: 4px;
+      border-top: 1.5px solid rgba(124,58,58,0.2);
+      font-size: 0.82rem;
+    }
+    .selection-total-lbl { color: rgba(44,40,38,0.55); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .selection-total-val { color: var(--wine); font-weight: 600; }
+
     /* ── Service cards ── */
     .services-grid {
       display: grid;
@@ -366,10 +397,19 @@
     <!-- ── STEP 1: Service selection ── -->
     <div class="step-panel active" id="panel1">
       <h2 class="panel-title">Kies je behandeling</h2>
-      <p class="panel-sub">Selecteer de behandeling die je wilt boeken</p>
+      <p class="panel-sub">Selecteer een of meerdere behandelingen</p>
 
       <div class="cat-tabs" id="catTabs"></div>
       <div class="services-grid" id="servicesGrid"></div>
+
+      <div class="selection-summary" id="selectionSummary">
+        <div class="selection-summary-title">Geselecteerd</div>
+        <div id="selectionItems"></div>
+        <div class="selection-total">
+          <span class="selection-total-lbl">Totaal</span>
+          <span class="selection-total-val" id="selectionTotal"></span>
+        </div>
+      </div>
 
       <div class="btn-row">
         <button class="btn" id="btn1Next" disabled onclick="goStep(2)">Volgende →</button>
@@ -518,13 +558,37 @@
     // ── State ─────────────────────────────────────────────────
     let state = {
       step: 1,
-      service: null,
+      services: [],
       calYear: new Date().getFullYear(),
       calMonth: new Date().getMonth(),
       selDate: null,
       selTime: null,
       bookedSlots: [],
     };
+
+    // ── Price / duration helpers ──────────────────────────────
+    function calcTotalPrice(services) {
+      if (!services.length) return '';
+      if (services.some(s => s.price === 'Op aanvraag')) return 'Op aanvraag';
+      let total = 0;
+      for (const s of services) {
+        if (s.price === 'Gratis') continue;
+        const num = parseFloat(s.price.replace('€', '').trim());
+        if (isNaN(num)) return 'Op aanvraag';
+        total += num;
+      }
+      if (total === 0) return 'Gratis';
+      return `~€ ${total}`;
+    }
+
+    function calcTotalDur(services) {
+      return services.reduce((sum, s) => sum + s.dur, 0);
+    }
+
+    function displayPrice(price) {
+      if (price === 'Op aanvraag' || price === 'Gratis') return price;
+      return '~' + price;
+    }
 
     // ── Dutch month/day names ─────────────────────────────────
     const MONTHS_NL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
@@ -550,51 +614,86 @@
     function renderServices(cat) {
       const grid = document.getElementById('servicesGrid');
       if (cat === 'Anders') {
-        const isSelected = state.service && state.service.isCustom;
-        const currentText = (state.service && state.service.customText) || '';
+        const customSvc = state.services.find(s => s.isCustom);
+        const isSelected = !!customSvc;
+        const currentText = (customSvc && customSvc.customText) || '';
         grid.innerHTML = `<div class="svc-card${isSelected ? ' selected' : ''}" id="customSvcCard" onclick="selectCustomCard(this)" style="max-width:480px;">
           <div class="svc-name">Anders / eigen wens</div>
           <div class="svc-meta" style="margin-bottom:8px;">
             <span class="svc-price">Op aanvraag</span>
-            <span class="svc-dur">± 60 min</span>
+            <span class="svc-dur">~60 min</span>
           </div>
           <textarea class="custom-svc-input" id="customSvcInput" placeholder="Beschrijf je wens, bijv. nagelverlenging met specifiek design…" onclick="event.stopPropagation()" oninput="updateCustomSvc(this.value)">${currentText}</textarea>
         </div>`;
         return;
       }
       const filtered = SERVICES.filter(s => s.cat === cat);
-      grid.innerHTML = filtered.map((s, i) => {
-        const sel = state.service && state.service.name === s.name ? ' selected' : '';
+      grid.innerHTML = filtered.map((s) => {
+        const sel = state.services.some(sv => sv.name === s.name) ? ' selected' : '';
         return `<div class="svc-card${sel}" onclick="selectService(${SERVICES.indexOf(s)})">
           <div class="svc-name">${s.name}</div>
           <div class="svc-meta">
-            <span class="svc-price">${s.price}</span>
-            <span class="svc-dur">${s.dur} min</span>
+            <span class="svc-price">${displayPrice(s.price)}</span>
+            <span class="svc-dur">~${s.dur} min</span>
           </div>
         </div>`;
       }).join('');
     }
 
+    function updateSelectionSummary() {
+      const summary = document.getElementById('selectionSummary');
+      const itemsEl = document.getElementById('selectionItems');
+      const totalEl = document.getElementById('selectionTotal');
+      if (!state.services.length) {
+        summary.classList.remove('visible');
+        return;
+      }
+      summary.classList.add('visible');
+      itemsEl.innerHTML = state.services.map(s =>
+        `<div class="selection-item">
+          <span class="selection-item-name">${s.name}</span>
+          <span class="selection-item-price">${displayPrice(s.price)} &nbsp;·&nbsp; ~${s.dur} min</span>
+        </div>`
+      ).join('');
+      const totalDur = calcTotalDur(state.services);
+      const totalPrice = calcTotalPrice(state.services);
+      totalEl.textContent = `${totalPrice}  ·  ~${totalDur} min`;
+    }
+
     function selectService(idx) {
-      state.service = SERVICES[idx];
-      // Re-render current category to update selection
+      const svc = SERVICES[idx];
+      const existing = state.services.findIndex(s => s.name === svc.name);
+      if (existing >= 0) {
+        state.services.splice(existing, 1);
+      } else {
+        state.services.push(svc);
+      }
       const activeTab = document.querySelector('.cat-tab.active');
       if (activeTab) renderServices(activeTab.textContent);
-      document.getElementById('btn1Next').disabled = false;
+      document.getElementById('btn1Next').disabled = state.services.length === 0;
+      updateSelectionSummary();
     }
 
     function selectCustomCard(el) {
-      document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('selected'));
-      el.classList.add('selected');
       const text = document.getElementById('customSvcInput')?.value || '';
-      state.service = { cat: 'Anders', name: text.trim() ? 'Anders: ' + text.trim() : 'Anders', price: 'Op aanvraag', dur: 60, isCustom: true, customText: text };
-      document.getElementById('btn1Next').disabled = false;
+      const existingIdx = state.services.findIndex(s => s.isCustom);
+      if (existingIdx >= 0) {
+        state.services.splice(existingIdx, 1);
+        el.classList.remove('selected');
+      } else {
+        const customSvc = { cat: 'Anders', name: text.trim() ? 'Anders: ' + text.trim() : 'Anders', price: 'Op aanvraag', dur: 60, isCustom: true, customText: text };
+        state.services.push(customSvc);
+        el.classList.add('selected');
+      }
+      document.getElementById('btn1Next').disabled = state.services.length === 0;
+      updateSelectionSummary();
     }
 
     function updateCustomSvc(value) {
-      if (!state.service || !state.service.isCustom) return;
-      state.service.customText = value;
-      state.service.name = value.trim() ? 'Anders: ' + value.trim() : 'Anders';
+      const idx = state.services.findIndex(s => s.isCustom);
+      if (idx < 0) return;
+      state.services[idx].customText = value;
+      state.services[idx].name = value.trim() ? 'Anders: ' + value.trim() : 'Anders';
     }
 
     // ── Calendar ──────────────────────────────────────────────
@@ -664,7 +763,7 @@
         return { start: h * 60 + min, dur: r.service_duration };
       });
 
-      const slots = generateSlots(dow, state.service.dur, booked);
+      const slots = generateSlots(dow, calcTotalDur(state.services), booked);
       if (!slots.length) {
         container.innerHTML = '<p class="slots-empty">Geen beschikbare tijden op deze dag</p>';
         return;
@@ -716,7 +815,9 @@
     }
 
     function updateRecap(id) {
-      const s = state.service;
+      const names = state.services.map(s => s.name).join(' + ');
+      const totalPrice = calcTotalPrice(state.services);
+      const totalDur = calcTotalDur(state.services);
       let extra = '';
       if (id === 'recapBar3' && state.selDate && state.selTime) {
         const d = state.selDate;
@@ -724,10 +825,10 @@
       }
       document.getElementById(id).innerHTML = `
         <div>
-          <div class="svc-name">${s.name}</div>
+          <div class="svc-name">${names}</div>
           <div class="svc-meta">
-            <span class="svc-price">${s.price}</span>
-            <span class="svc-dur">${s.dur} min</span>
+            <span class="svc-price">${totalPrice}</span>
+            <span class="svc-dur">~${totalDur} min</span>
             ${extra ? `<span style="font-size:0.78rem;color:rgba(44,40,38,0.5);">${extra}</span>` : ''}
           </div>
         </div>`;
@@ -759,9 +860,9 @@
       const dow = DAYS_FULL[d.getDay()];
       const notes = document.getElementById('fNotes').value.trim();
       const rows = [
-        ['Behandeling', state.service.name],
-        ['Prijs',       state.service.price],
-        ['Duur',        state.service.dur + ' minuten'],
+        ['Behandeling', state.services.map(s => s.name).join(' + ')],
+        ['Prijs',       calcTotalPrice(state.services)],
+        ['Duur',        '~' + calcTotalDur(state.services) + ' minuten'],
         ['Datum',       `${dow.charAt(0).toUpperCase()+dow.slice(1)} ${d.getDate()} ${MONTHS_NL[d.getMonth()]} ${d.getFullYear()}`],
         ['Tijd',        state.selTime],
         ['Naam',        `${document.getElementById('fVoornaam').value} ${document.getElementById('fAchternaam').value}`],
@@ -788,9 +889,9 @@
         name:             fullName,
         phone:            document.getElementById('fPhone').value.trim(),
         email:            document.getElementById('fEmail').value.trim(),
-        service_name:     state.service.name,
-        service_duration: state.service.dur,
-        service_price:    state.service.price,
+        service_name:     state.services.map(s => s.name).join(' + '),
+        service_duration: calcTotalDur(state.services),
+        service_price:    calcTotalPrice(state.services),
         appointment_date: dateStr,
         appointment_time: state.selTime + ':00',
         status:           'pending',
@@ -806,19 +907,7 @@
         return;
       }
 
-      // Send confirmation email (fire-and-forget, don't block success screen)
-      const emailPayload = {
-        name:             fullName,
-        email:            document.getElementById('fEmail').value.trim(),
-        service_name:     state.service.name,
-        service_price:    state.service.price,
-        service_duration: state.service.dur,
-        appointment_date: dateStr,
-        appointment_time: state.selTime + ':00',
-        notes:            document.getElementById('fNotes').value.trim() || undefined,
-      };
-      sb.functions.invoke('send-booking-confirmation', { body: emailPayload })
-        .catch(err => console.warn('Email kon niet worden verstuurd:', err));
+      // Confirmation email is sent automatically via database trigger.
 
       // Show success
       document.getElementById('stepsBar').style.display = 'none';
@@ -828,10 +917,10 @@
       const dow = DAYS_FULL[d.getDay()];
       document.getElementById('successSummary').innerHTML = `
         <div class="confirm-card" style="text-align:left;">
-          <div class="confirm-row"><span class="lbl">Behandeling</span><span class="val">${state.service.name}</span></div>
+          <div class="confirm-row"><span class="lbl">Behandeling</span><span class="val">${state.services.map(s=>s.name).join(' + ')}</span></div>
           <div class="confirm-row"><span class="lbl">Datum</span><span class="val">${dow.charAt(0).toUpperCase()+dow.slice(1)} ${d.getDate()} ${MONTHS_NL[d.getMonth()]}</span></div>
           <div class="confirm-row"><span class="lbl">Tijd</span><span class="val">${state.selTime}</span></div>
-          <div class="confirm-row" style="border:none;"><span class="lbl">Duur</span><span class="val">${state.service.dur} min</span></div>
+          <div class="confirm-row" style="border:none;"><span class="lbl">Duur</span><span class="val">~${calcTotalDur(state.services)} min</span></div>
         </div>`;
     }
 
