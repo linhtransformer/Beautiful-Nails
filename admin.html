@@ -227,40 +227,107 @@
     .day-title { font-family: 'Tenor Sans', sans-serif; font-size: 1.2rem; color: var(--text); }
     .day-body { flex: 1; overflow-y: auto; display: flex; }
 
-    /* ── Popover ── */
-    .popover {
-      position: fixed; z-index: 200;
-      background: var(--raised); border: 1px solid var(--border);
-      border-radius: 6px; padding: 16px; width: 240px;
-      box-shadow: 0 4px 24px rgba(44,40,38,0.14), 0 1px 4px rgba(44,40,38,0.08);
-      display: none;
+    /* ── Detail modal (bottom sheet on mobile, popover on desktop) ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(44,40,38,0.45);
+      display: none; align-items: flex-end; justify-content: center;
     }
-    .popover.show { display: block; }
-    .popover-close {
-      position: absolute; top: 8px; right: 10px;
-      background: none; border: none; color: var(--muted);
-      cursor: pointer; font-size: 1rem; line-height: 1;
+    .modal-backdrop.show { display: flex; }
+
+    .appt-modal {
+      background: var(--surface);
+      border-radius: 14px 14px 0 0;
+      width: 100%; max-width: 480px;
+      padding: 0 0 env(safe-area-inset-bottom, 16px);
+      box-shadow: 0 -4px 32px rgba(44,40,38,0.18);
+      max-height: 90vh; overflow-y: auto;
     }
-    .popover-name { font-size: 0.9rem; color: var(--text); margin-bottom: 10px; font-weight: 700; }
-    .popover-row { font-size: 0.78rem; color: var(--muted); margin-bottom: 5px; }
-    .popover-row span { color: var(--text); }
-    .popover-status {
-      display: inline-block; margin-top: 8px; padding: 3px 10px;
-      border-radius: 10px; font-size: 0.68rem; text-transform: uppercase;
-      letter-spacing: 0.1em; background: rgba(124,58,58,0.3); color: var(--wine-lt);
+
+    /* On desktop: show as centred card instead */
+    @media (min-width: 600px) {
+      .modal-backdrop { align-items: center; }
+      .appt-modal {
+        border-radius: 10px;
+        max-width: 380px;
+        margin: 16px;
+      }
     }
-    .popover-status.confirmed { background: rgba(80,140,80,0.25); color: #8bc88b; }
-    .popover-status.cancelled { background: rgba(180,60,60,0.2); color: #e08080; }
-    .popover-actions { display: flex; gap: 6px; margin-top: 12px; }
-    .pact-btn {
-      flex: 1; padding: 6px; border-radius: 3px; font-size: 0.68rem;
-      letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
-      border: 1px solid var(--border); background: none; color: var(--muted);
-      transition: border-color 0.15s, color 0.15s;
+
+    .modal-handle {
+      width: 36px; height: 4px;
+      background: var(--border); border-radius: 2px;
+      margin: 12px auto 0;
     }
-    .pact-btn:hover { border-color: var(--wine-lt); color: var(--text); }
-    .pact-btn.confirm { border-color: rgba(80,140,80,0.4); color: #8bc88b; }
-    .pact-btn.cancel  { border-color: rgba(180,60,60,0.3); color: #e08080; }
+    @media (min-width: 600px) { .modal-handle { display: none; } }
+
+    .modal-header {
+      padding: 16px 20px 0;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    .modal-name {
+      font-family: 'Tenor Sans', sans-serif;
+      font-size: 1.05rem; color: var(--text); font-weight: 700; line-height: 1.2;
+    }
+    .modal-close {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 1.2rem; line-height: 1; padding: 2px 4px; flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-status {
+      display: inline-block; margin: 10px 20px 0;
+      padding: 3px 10px; border-radius: 10px;
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;
+      background: rgba(124,58,58,0.3); color: var(--wine-lt);
+    }
+    .modal-status.confirmed { background: rgba(80,140,80,0.25); color: #8bc88b; }
+    .modal-status.cancelled { background: rgba(180,60,60,0.2); color: #e08080; }
+
+    .modal-divider {
+      height: 1px; background: var(--border); margin: 14px 20px;
+    }
+
+    .modal-rows { padding: 0 20px; }
+    .modal-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .modal-row:last-child { border-bottom: none; }
+    .modal-row-icon {
+      width: 20px; text-align: center; flex-shrink: 0;
+      font-size: 0.9rem; margin-top: 1px; opacity: 0.55;
+    }
+    .modal-row-body { flex: 1; }
+    .modal-row-label {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted); margin-bottom: 2px;
+    }
+    .modal-row-val {
+      font-size: 0.85rem; color: var(--text); line-height: 1.4;
+    }
+
+    .modal-actions {
+      display: flex; gap: 8px; padding: 14px 20px 16px;
+    }
+    .mact-btn {
+      flex: 1; padding: 11px 8px; border-radius: 5px;
+      font-family: 'Tenor Sans', sans-serif;
+      font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; border: 1px solid var(--border);
+      background: none; color: var(--muted);
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .mact-btn:hover { border-color: rgba(44,40,38,0.25); color: var(--text); }
+    .mact-btn.confirm {
+      border-color: rgba(80,140,80,0.45); color: #7bbf7b;
+    }
+    .mact-btn.confirm:hover { background: rgba(80,140,80,0.1); }
+    .mact-btn.cancel {
+      border-color: rgba(180,60,60,0.35); color: #de8080;
+    }
+    .mact-btn.cancel:hover { background: rgba(180,60,60,0.08); }
   </style>
 </head>
 <body>
@@ -310,20 +377,64 @@
 
   </div>
 
-  <!-- Popover -->
-  <div class="popover" id="popover">
-    <button class="popover-close" onclick="closePopover()">×</button>
-    <div class="popover-name" id="popName"></div>
-    <div class="popover-row">Dienst: <span id="popSvc"></span></div>
-    <div class="popover-row">Tijd: <span id="popTime"></span></div>
-    <div class="popover-row">Duur: <span id="popDur"></span></div>
-    <div class="popover-row">Tel: <span id="popPhone"></span></div>
-    <div class="popover-row">Email: <span id="popEmail"></span></div>
-    <div class="popover-row" id="popNotesRow" style="display:none;">Notities: <span id="popNotes"></span></div>
-    <div><span class="popover-status" id="popStatus"></span></div>
-    <div class="popover-actions">
-      <button class="pact-btn confirm" id="pActConfirm" onclick="updateStatus('confirmed')">Bevestigen</button>
-      <button class="pact-btn cancel"  id="pActCancel"  onclick="updateStatus('cancelled')">Annuleren</button>
+  <!-- Appointment detail modal -->
+  <div class="modal-backdrop" id="modalBackdrop" onclick="handleBackdropClick(event)">
+    <div class="appt-modal" id="apptModal">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div class="modal-name" id="popName"></div>
+        <button class="modal-close" onclick="closePopover()">×</button>
+      </div>
+      <span class="modal-status" id="popStatus"></span>
+      <div class="modal-divider"></div>
+      <div class="modal-rows">
+        <div class="modal-row">
+          <div class="modal-row-icon">✦</div>
+          <div class="modal-row-body">
+            <div class="modal-row-label">Behandeling</div>
+            <div class="modal-row-val" id="popSvc"></div>
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-row-icon">📅</div>
+          <div class="modal-row-body">
+            <div class="modal-row-label">Datum &amp; Tijd</div>
+            <div class="modal-row-val" id="popTime"></div>
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-row-icon">⏱</div>
+          <div class="modal-row-body">
+            <div class="modal-row-label">Duur &amp; Prijs</div>
+            <div class="modal-row-val" id="popDur"></div>
+          </div>
+        </div>
+        <div class="modal-row">
+          <div class="modal-row-icon">📞</div>
+          <div class="modal-row-body">
+            <div class="modal-row-label">Telefoon</div>
+            <div class="modal-row-val" id="popPhone"></div>
+          </div>
+        </div>
+        <div class="modal-row" id="popEmailRow">
+          <div class="modal-row-icon">✉</div>
+          <div class="modal-row-body">
+            <div class="modal-row-label">E-mail</div>
+            <div class="modal-row-val" id="popEmail"></div>
+          </div>
+        </div>
+        <div class="modal-row" id="popNotesRow" style="display:none;">
+          <div class="modal-row-icon">📝</div>
+          <div class="modal-row-body">
+            <div class="modal-row-label">Notities</div>
+            <div class="modal-row-val" id="popNotes"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="mact-btn confirm" onclick="updateStatus('confirmed')">Bevestigen</button>
+        <button class="mact-btn cancel"  onclick="updateStatus('cancelled')">Annuleren</button>
+      </div>
     </div>
   </div>
 
@@ -648,38 +759,47 @@
       setTimeout(() => { body.scrollTop = (10 - FIRST_HOUR) * HOUR_H - 16; }, 0);
     }
 
-    // ── Popover ───────────────────────────────────────────────
+    // ── Appointment detail modal ──────────────────────────────
     function openPopover(appt, evt) {
       popAppt = appt;
+
+      // Format date nicely: "vrijdag 20 maart 2026"
+      const [y, mo, d] = appt.appointment_date.split('-').map(Number);
+      const dateObj = new Date(y, mo - 1, d);
+      const dateNl = `${DAYS_FULL[dateObj.getDay()].toLowerCase()} ${d} ${MONTHS[mo-1].toLowerCase()} ${y}`;
+
       document.getElementById('popName').textContent  = appt.name;
       document.getElementById('popSvc').textContent   = appt.service_name;
-      document.getElementById('popTime').textContent  = appt.appointment_time.slice(0,5) + ' · ' + appt.appointment_date;
-      document.getElementById('popDur').textContent   = appt.service_duration + ' min · ' + appt.service_price;
-      document.getElementById('popPhone').textContent = appt.phone;
-      document.getElementById('popEmail').textContent = appt.email;
+      document.getElementById('popTime').textContent  = appt.appointment_time.slice(0,5) + ' · ' + dateNl;
+      document.getElementById('popDur').textContent   = appt.service_duration + ' min · ' + (appt.service_price || '—');
+      document.getElementById('popPhone').textContent = appt.phone || '—';
+
+      const emailRow = document.getElementById('popEmailRow');
+      if (appt.email) {
+        document.getElementById('popEmail').textContent = appt.email;
+        emailRow.style.display = 'flex';
+      } else {
+        emailRow.style.display = 'none';
+      }
+
       const notesRow = document.getElementById('popNotesRow');
       if (appt.notes) {
         document.getElementById('popNotes').textContent = appt.notes;
-        notesRow.style.display = 'block';
+        notesRow.style.display = 'flex';
       } else {
         notesRow.style.display = 'none';
       }
+
+      const statusLabels = { confirmed: 'Bevestigd', cancelled: 'Geannuleerd', pending: 'In afwachting' };
       const st = document.getElementById('popStatus');
-      st.textContent = appt.status;
-      st.className = 'popover-status ' + (appt.status === 'confirmed' ? 'confirmed' : appt.status === 'cancelled' ? 'cancelled' : '');
-      const pop = document.getElementById('popover');
-      pop.classList.add('show');
-      const rect = evt.target.getBoundingClientRect();
-      let left = rect.right + 8;
-      let top  = rect.top;
-      if (left + 250 > window.innerWidth) left = rect.left - 258;
-      if (top + 280 > window.innerHeight) top = window.innerHeight - 290;
-      pop.style.left = left + 'px';
-      pop.style.top  = Math.max(8, top) + 'px';
+      st.textContent = statusLabels[appt.status] || appt.status;
+      st.className = 'modal-status ' + (appt.status === 'confirmed' ? 'confirmed' : appt.status === 'cancelled' ? 'cancelled' : '');
+
+      document.getElementById('modalBackdrop').classList.add('show');
     }
 
-    function closePopover() { document.getElementById('popover').classList.remove('show'); popAppt = null; }
-    document.addEventListener('click', e => { if (!document.getElementById('popover').contains(e.target)) closePopover(); });
+    function closePopover() { document.getElementById('modalBackdrop').classList.remove('show'); popAppt = null; }
+    function handleBackdropClick(e) { if (e.target === document.getElementById('modalBackdrop')) closePopover(); }
 
     async function updateStatus(status) {
       if (!popAppt) return;
