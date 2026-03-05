@@ -783,7 +783,8 @@
       const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const fullName = `${document.getElementById('fVoornaam').value.trim()} ${document.getElementById('fAchternaam').value.trim()}`;
 
-      const { error } = await sb.from('appointments').insert([{
+      const notesVal = document.getElementById('fNotes').value.trim();
+      const insertRow = {
         name:             fullName,
         phone:            document.getElementById('fPhone').value.trim(),
         email:            document.getElementById('fEmail').value.trim(),
@@ -793,14 +794,31 @@
         appointment_date: dateStr,
         appointment_time: state.selTime + ':00',
         status:           'pending',
-        notes:            document.getElementById('fNotes').value.trim() || null,
-      }]);
+      };
+      if (notesVal) insertRow.notes = notesVal;
+
+      const { error } = await sb.from('appointments').insert([insertRow]);
 
       if (error) {
+        console.error('Supabase insert error:', error);
         btn.disabled = false; btn.textContent = 'Afspraak bevestigen';
-        showToast('Er ging iets mis. Probeer opnieuw.');
+        showToast('Er ging iets mis: ' + (error.message || 'probeer opnieuw'));
         return;
       }
+
+      // Send confirmation email (fire-and-forget, don't block success screen)
+      const emailPayload = {
+        name:             fullName,
+        email:            document.getElementById('fEmail').value.trim(),
+        service_name:     state.service.name,
+        service_price:    state.service.price,
+        service_duration: state.service.dur,
+        appointment_date: dateStr,
+        appointment_time: state.selTime + ':00',
+        notes:            document.getElementById('fNotes').value.trim() || undefined,
+      };
+      sb.functions.invoke('send-booking-confirmation', { body: emailPayload })
+        .catch(err => console.warn('Email kon niet worden verstuurd:', err));
 
       // Show success
       document.getElementById('stepsBar').style.display = 'none';
