@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const MONTHS_NL = [
   "januari","februari","maart","april","mei","juni",
@@ -185,7 +188,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { id, name, email, service_name, service_price, service_duration, appointment_date, appointment_time, notes } = body;
+    const { name, email, service_name, service_price, service_duration, appointment_date, appointment_time, notes } = body;
 
     if (!email || !name) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -194,7 +197,23 @@ serve(async (req) => {
       });
     }
 
-    const html = buildEmailHtml({ id, name, email, service_name, service_price, service_duration, appointment_date, appointment_time, notes });
+    // Look up the appointment id so we can build a cancel link
+    let appointmentId: string | undefined;
+    try {
+      const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data } = await sb
+        .from("appointments")
+        .select("id")
+        .eq("email", email)
+        .eq("appointment_date", appointment_date)
+        .eq("appointment_time", appointment_time)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      appointmentId = data?.id;
+    } catch { /* non-fatal — email still sends without cancel link */ }
+
+    const html = buildEmailHtml({ id: appointmentId, name, email, service_name, service_price, service_duration, appointment_date, appointment_time, notes });
 
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
