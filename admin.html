@@ -193,6 +193,12 @@
     .appt-block:hover { opacity: 0.88; transform: scaleX(0.98); }
     .appt-block .ab-name { font-size: 0.72rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cream); }
     .appt-block .ab-svc  { font-size: 0.65rem; color: rgba(247,242,236,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .appt-block.cancelled {
+      background: rgba(44,40,38,0.18); border-left-color: rgba(44,40,38,0.25);
+      text-decoration: line-through; opacity: 0.6;
+    }
+    .appt-block.cancelled .ab-name { color: var(--muted); }
+    .appt-block.cancelled .ab-svc  { color: var(--muted); }
 
     /* ── Month view ── */
     .month-view { padding: 16px; }
@@ -491,7 +497,7 @@
     }
 
     function apptsOnDate(dateStr) {
-      return appointments.filter(a => a.appointment_date === dateStr && a.status !== 'cancelled');
+      return appointments.filter(a => a.appointment_date === dateStr);
     }
 
     function dateStr(d) {
@@ -562,6 +568,7 @@
       block.className = 'appt-block';
       block.style.top    = top + 'px';
       block.style.height = Math.max(h - 2, 20) + 'px';
+      if (appt.status === 'cancelled') block.classList.add('cancelled');
       block.innerHTML = `<div class="ab-name">${appt.name}</div><div class="ab-svc">${appt.service_name}</div>`;
       block.onclick = (e) => { e.stopPropagation(); openPopover(appt, e); };
       return block;
@@ -585,7 +592,7 @@
       document.getElementById('tbRange').textContent = rangeLabel;
 
       // Count this week's appts
-      const weekAppts = days.flatMap(d => apptsOnDate(dateStr(d)));
+      const weekAppts = days.flatMap(d => apptsOnDate(dateStr(d))).filter(a => a.status !== 'cancelled');
       document.getElementById('tbCount').innerHTML = `<span>${weekAppts.length}</span> afsprak${weekAppts.length===1?'':'en'} deze week`;
 
       const area = document.getElementById('calArea');
@@ -648,7 +655,7 @@
       const monthAppts = appointments.filter(a => {
         const [ay, am] = a.appointment_date.split('-').map(Number);
         return ay === y && am === m+1 && a.status !== 'cancelled';
-      });
+      }); // count excludes cancelled
       document.getElementById('tbCount').innerHTML = `<span>${monthAppts.length}</span> afsprak${monthAppts.length===1?'':'en'} deze maand`;
 
       const area = document.getElementById('calArea');
@@ -694,7 +701,8 @@
         let html = `<div class="${numCls}">${d}</div>`;
         const show = dayAppts.slice(0, 3);
         show.forEach(a => {
-          html += `<div class="mc-appt" title="${a.name}">${a.appointment_time.slice(0,5)} ${a.name.split(' ')[0]}</div>`;
+          const cancelledStyle = a.status === 'cancelled' ? 'opacity:0.45;text-decoration:line-through;background:rgba(44,40,38,0.25);' : '';
+          html += `<div class="mc-appt" style="${cancelledStyle}" title="${a.name}">${a.appointment_time.slice(0,5)} ${a.name.split(' ')[0]}</div>`;
         });
         if (dayAppts.length > 3) html += `<div class="mc-more">+${dayAppts.length-3} meer</div>`;
         cel.innerHTML = html;
@@ -728,8 +736,9 @@
 
       document.getElementById('tbRange').textContent =
         `${DAYS_FULL[cursor.getDay()]} ${cursor.getDate()} ${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`;
+      const dayCount = dayAppts.filter(a => a.status !== 'cancelled').length;
       document.getElementById('tbCount').innerHTML =
-        `<span>${dayAppts.length}</span> afsprak${dayAppts.length===1?'':'en'} vandaag`;
+        `<span>${dayCount}</span> afsprak${dayCount===1?'':'en'} vandaag`;
 
       const area = document.getElementById('calArea');
       area.innerHTML = '';
