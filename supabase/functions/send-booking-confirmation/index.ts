@@ -38,7 +38,7 @@ function buildEmailHtml(data: {
   notes?: string;
 }): string {
   const cancelUrl = data.id
-    ? `https://linhtransformer.github.io/Beautiful-Nails/cancel.html?id=${data.id}&email=${encodeURIComponent(data.email)}`
+    ? `https://nagelstudiobeautifulnails.nl/cancel.html?id=${data.id}&email=${encodeURIComponent(data.email)}`
     : null;
   const firstName = data.name.split(" ")[0];
   const formattedDate = formatDate(data.appointment_date);
