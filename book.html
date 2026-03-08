@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Afspraak maken – Beautiful Nails</title>
-  <link rel="icon" type="image/png" href="Brand asset/favicon.png">
+  <link rel="icon" type="image/png" href="Brand%20asset/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600;1,700&family=Tenor+Sans&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -776,14 +776,17 @@
       }</div>`;
     }
 
+    const MAX_PER_SLOT = 3;
+
     function generateSlots(dow, dur, booked) {
       const h = HOURS[dow];
       if (!h) return [];
       const [startH, endH] = h;
       const slots = [];
       for (let m = startH * 60; m + dur <= endH * 60; m += 15) {
-        const taken = booked.some(b => m === b.start);
-        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken });
+        const count = booked.filter(b => m === b.start).length;
+        const taken = count >= MAX_PER_SLOT;
+        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken, count });
       }
       return slots;
     }
