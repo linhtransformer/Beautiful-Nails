@@ -1,0 +1,19 @@
+name: Send appointment reminders
+
+on:
+  schedule:
+    # 06:00 UTC = 08:00 Amsterdam in summer, 07:00 in winter
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger send-reminders edge function
+        run: |
+          curl -sS -X POST \
+            "https://cgnkwhcsyzhrymfrensd.supabase.co/functions/v1/send-reminders" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnbmt3aGNzeXpocnltZnJlbnNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTEzNDAsImV4cCI6MjA4ODE4NzM0MH0.ZPyQjFvLfaFpWs4b0il61dxyfnwT3cBlVHrAXqR3-Ak" \
+            -H "Content-Type: application/json" \
+            -d '{}'

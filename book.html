@@ -421,7 +421,7 @@
     <div class="step-panel" id="panel2">
       <div class="recap-bar" id="recapBar2"></div>
       <h2 class="panel-title">Kies datum & tijd</h2>
-      <p class="panel-sub">Zondag zijn we gesloten</p>
+      <p class="panel-sub">Zondag zijn we gesloten · Online boeken kan tot 2,5 uur van tevoren</p>
 
       <div class="cal-layout">
         <div class="cal-wrap">
@@ -764,30 +764,57 @@
         return { start: h * 60 + min, dur: r.service_duration };
       });
 
-      const slots = generateSlots(dow, calcTotalDur(state.services), booked);
+      const slots = generateSlots(dow, calcTotalDur(state.services), booked, minStartMinutes(state.selDate));
       if (!slots.length) {
         container.innerHTML = '<p class="slots-empty">Geen beschikbare tijden op deze dag</p>';
         return;
       }
+      if (slots.every(s => s.taken || s.tooSoon)) {
+        container.innerHTML = `<div class="slots-grid">${
+          slots.map(s => `<button class="slot-btn" disabled title="${s.tooSoon ? 'Niet meer online te boeken' : 'Bezet'}">${s.label}</button>`).join('')
+        }</div><p class="slots-empty">Vandaag online boeken kan tot 2,5 uur van tevoren. Bel ons voor een afspraak op korte termijn.</p>`;
+        return;
+      }
       container.innerHTML = `<div class="slots-grid">${
-        slots.map(s => s.taken
-          ? `<button class="slot-btn" disabled title="Bezet">${s.label}</button>`
+        slots.map(s => (s.taken || s.tooSoon)
+          ? `<button class="slot-btn" disabled title="${s.tooSoon ? 'Niet meer online te boeken' : 'Bezet'}">${s.label}</button>`
           : `<button class="slot-btn" onclick="selectTime('${s.label}',this)">${s.label}</button>`
         ).join('')
       }</div>`;
     }
 
-    const MAX_PER_SLOT = 3;
+    const MAX_PER_SLOT = 3;   // chairs: max overlapping appointments at any minute
+    const LEAD_TIME_MIN = 150; // online booking requires 2.5 hours notice
 
-    function generateSlots(dow, dur, booked) {
+    // A new appointment [start, start+dur) fits when it never overlaps with
+    // MAX_PER_SLOT existing appointments (each blocking its full duration).
+    function slotIsFree(start, dur, booked) {
+      const end = start + dur;
+      const points = [start, ...booked.map(b => b.start).filter(s => s > start && s < end)];
+      return points.every(p =>
+        booked.filter(b => b.start <= p && p < b.start + b.dur).length < MAX_PER_SLOT
+      );
+    }
+
+    // Earliest bookable minute-of-day for a given date (0 for future dates)
+    function minStartMinutes(date) {
+      const now = new Date();
+      const isToday = date.getFullYear() === now.getFullYear() &&
+                      date.getMonth() === now.getMonth() &&
+                      date.getDate() === now.getDate();
+      if (!isToday) return date < now ? Infinity : 0;
+      return now.getHours() * 60 + now.getMinutes() + LEAD_TIME_MIN;
+    }
+
+    function generateSlots(dow, dur, booked, minStart = 0) {
       const h = HOURS[dow];
       if (!h) return [];
       const [startH, endH] = h;
       const slots = [];
       for (let m = startH * 60; m + dur <= endH * 60; m += 15) {
-        const count = booked.filter(b => m === b.start).length;
-        const taken = count >= MAX_PER_SLOT;
-        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken, count });
+        const taken = !slotIsFree(m, dur, booked);
+        const tooSoon = m < minStart;
+        slots.push({ label: `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`, taken, tooSoon });
       }
       return slots;
     }
@@ -884,12 +911,22 @@
       const btn = document.getElementById('btnConfirm');
       btn.disabled = true; btn.textContent = 'Bezig…';
 
+      // Re-check lead time at submit — the tab may have been open for a while
+      const [selH, selM] = state.selTime.split(':').map(Number);
+      if (selH * 60 + selM < minStartMinutes(state.selDate)) {
+        btn.disabled = false; btn.textContent = 'Afspraak bevestigen';
+        showToast('Deze tijd kan niet meer online geboekt worden (minimaal 2,5 uur van tevoren). Kies een andere tijd.');
+        goStep(2);
+        selectDate(state.selDate.getFullYear(), state.selDate.getMonth(), state.selDate.getDate());
+        return;
+      }
+
       const d = state.selDate;
       const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const fullName = `${document.getElementById('fVoornaam').value.trim()} ${document.getElementById('fAchternaam').value.trim()}`;
 
       const notesVal = document.getElementById('fNotes').value.trim();
-      const insertRow = {
+      const bookingRow = {
         name:             fullName,
         phone:            document.getElementById('fPhone').value.trim(),
         email:            document.getElementById('fEmail').value.trim(),
@@ -898,16 +935,44 @@
         service_price:    calcTotalPrice(state.services),
         appointment_date: dateStr,
         appointment_time: state.selTime + ':00',
-        status:           'pending',
       };
-      if (notesVal) insertRow.notes = notesVal;
+      if (notesVal) bookingRow.notes = notesVal;
 
-      const { error } = await sb.from('appointments').insert([insertRow]);
+      // Booking goes through an edge function that enforces all rules
+      // (lead time, capacity, per-phone limit) server-side.
+      let { data: res, error } = await sb.functions.invoke('book-appointment', { body: bookingRow });
+      if (typeof res === 'string') { try { res = JSON.parse(res); } catch { res = null; } }
 
-      if (error) {
-        console.error('Supabase insert error:', error);
+      // Transitional fallback: if the function is not deployed/reachable,
+      // re-check capacity client-side and insert directly like before.
+      if (error && !res) {
+        const { data: dayRows } = await sb.from('appointments')
+          .select('appointment_time, service_duration')
+          .eq('appointment_date', dateStr)
+          .neq('status', 'cancelled');
+        const dayBooked = (dayRows || []).map(r => {
+          const [h, min] = r.appointment_time.split(':').map(Number);
+          return { start: h * 60 + min, dur: r.service_duration };
+        });
+        const [sh, sm] = state.selTime.split(':').map(Number);
+        if (!slotIsFree(sh * 60 + sm, bookingRow.service_duration, dayBooked)) {
+          res = { success: false, code: 'full', message: 'Deze tijd is helaas net volgeboekt. Kies een andere tijd.' };
+        } else {
+          const ins = await sb.from('appointments').insert([{ ...bookingRow, status: 'pending' }]);
+          res = ins.error ? { success: false, message: 'Er ging iets mis: ' + ins.error.message } : { success: true };
+          error = null;
+        }
+      }
+
+      if (error || !res || !res.success) {
+        console.error('Booking error:', error || res);
         btn.disabled = false; btn.textContent = 'Afspraak bevestigen';
-        showToast('Er ging iets mis: ' + (error.message || 'probeer opnieuw'));
+        showToast((res && res.message) || 'Er ging iets mis, probeer het opnieuw.');
+        // Slot conflicts: send the user back to pick a different time
+        if (res && (res.code === 'full' || res.code === 'too_soon')) {
+          goStep(2);
+          selectDate(state.selDate.getFullYear(), state.selDate.getMonth(), state.selDate.getDate());
+        }
         return;
       }
 
